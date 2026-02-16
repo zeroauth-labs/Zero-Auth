@@ -35,7 +35,12 @@
 **Objective**: Optimize asset loading for Expo Go and implement robust SDK polling error handling.
 **Requirements**: REQ-05, TECH-01
 
-### Phase 6: Native Performance (Tech Pivot)
+### Phase 6: Production UX & E2E Testing
 **Status**: ⬜ Not Started
-**Objective**: Transition from WebView-based ZK to a native Rust/WASM bridge for maximum performance.
+**Objective**: Finalize biometric integration, implement a unified E2E test workflow, and refine the credential issuance UX.
+**Requirements**: REQ-10, REQ-11
+
+### Phase 7: Native Performance (Future Pivot)
+**Status**: ⏸️ Deprioritized
+**Objective**: (Optional) Transition to native Rust if performance benchmarks degrade with complex circuits.
 **Requirements**: TECH-02

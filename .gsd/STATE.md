@@ -8,9 +8,9 @@ Zero Auth is a ZK-based passwordless authentication system. The project is in a 
 ## Current Milestone: v1.0 — MVP Initialization
 **Status**: 🔵 In Progress
 
-- **Phase**: Phase 5: SDK Refinement & Production Prep (completed)
-- **Task**: All tasks complete
-- **Status**: 🟢 Verified
+- **Phase**: Phase 6: Production UX & E2E Testing
+- **Task**: Planning complete (Plans 6.1, 6.2 formulated)
+- **Status**: Ready for execution
 
 ## Last Session Summary
 - Refactored SDK for resilient polling with backoff and cancellation.
