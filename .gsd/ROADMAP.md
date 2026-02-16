@@ -40,7 +40,18 @@
 **Objective**: Finalize biometric integration, implement a unified E2E test workflow, and refine the credential issuance UX.
 **Requirements**: REQ-10, REQ-11
 
-### Phase 7: Native Performance (Future Pivot)
+### Phase 7: ZK Generation Overhaul
+**Status**: ⬜ Not Started
+**Objective**: Rebuild and rigorously validate the ZK proof generation pipeline from scratch, ensuring reliability, correctness, and offline capability.
+**Depends on**: Phase 6
+
+**Tasks**:
+- [ ] TBD (run /plan 7 to create)
+
+**Verification**:
+- TBD
+
+### Phase 8: Native Performance (Future Pivot)
 **Status**: ⏸️ Deprioritized
 **Objective**: (Optional) Transition to native Rust if performance benchmarks degrade with complex circuits.
 **Requirements**: TECH-02
