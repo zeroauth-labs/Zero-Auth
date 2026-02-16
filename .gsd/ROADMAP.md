@@ -21,11 +21,21 @@
 **Requirements**: REQ-02, REQ-04
 
 ### Phase 3: Session Management & Revocation
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Build the wallet session dashboard and Relay revocation logic.
 **Requirements**: REQ-06, REQ-07
 
-### Phase 4: SDK Refinement & Production Prep
+### Phase 4: Extended Claims & Verification
 **Status**: ⬜ Not Started
-**Objective**: Update SDK for better polling and optimize assets for **Expo Go** distribution.
-**Requirements**: REQ-05, REQ-08, TECH-01
+**Objective**: Implement "Student Status" and "Minor Verification" circuits. Expand the SDK to support multi-claim verification requests.
+**Requirements**: REQ-08, REQ-09
+
+### Phase 5: SDK Refinement & Production Prep
+**Status**: ⬜ Not Started
+**Objective**: Optimize asset loading for Expo Go and implement robust SDK polling error handling.
+**Requirements**: REQ-05, TECH-01
+
+### Phase 6: Native Performance (Tech Pivot)
+**Status**: ⬜ Not Started
+**Objective**: Transition from WebView-based ZK to a native Rust/WASM bridge for maximum performance.
+**Requirements**: TECH-02

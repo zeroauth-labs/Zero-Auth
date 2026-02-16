@@ -8,17 +8,17 @@ Zero Auth is a ZK-based passwordless authentication system. The project is in a 
 ## Current Milestone: v1.0 — MVP Initialization
 **Status**: 🔵 In Progress
 
-- **Phase**: Phase 3: Session Management & Revocation
-- **Task**: Planning complete (Plans 3.1, 3.2, 3.3 formulated)
-- **Status**: Ready for execution
+- **Phase**: Phase 4: Extended Claims & Verification
+- **Task**: Planning complete (Plans 4.1, 4.2, 4.3 formulated)
+- **Status**: Active (resumed 2026-02-16T09:35:45Z)
 
 ## Last Session Summary
-- Established WebView ZK Bridge (Phase 1).
-- Implemented async verification and JSON import (Phase 2).
-- Verified data integrity and performance targets.
+- Implemented real-time session revocation (Relay + Wallet).
+- Built a session dashboard ("Privacy Monitor") in the wallet.
+- Updated SDK to handle revoked signals gracefully.
 
 ## Next Steps
-1. `/plan 3` to design Session Management and Revocation logic.
+1. `/plan 4` to design Extended Claims & Identity Verification.
 
 ## Active Decisions
 - Use `snarkjs` / `circomlibjs` for ZK logic across the stack.
