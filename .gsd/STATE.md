@@ -14,10 +14,8 @@ Zero Auth is a ZK-based passwordless authentication system. The project is in a 
 
 ## Last Session Summary
 ## Last Session Summary
-- Created unified ecosystem orchestration scripts in root.
-- Implemented one-click Demo Data Generator in Wallet.
-- Added Biometric Security Settings and conditional gating.
-- Documented full E2E testing workflow in `TESTING.md`.
+- Fixed Relay Redis port (changed 6374 to 6379).
+- Diagnosed potential Expo Go network/cache issues.
 
 ## Next Steps
 1. Review `TESTING.md` and verify the walkthrough.
