@@ -12,11 +12,11 @@
 
 ## Resolution
 
-**Root Cause 3:** `SecureStore` keys cannot contain spaces.
-**Fix 3:** Sanitized keys in `auth-store.ts` using `.replace(/\s+/g, '_').toLowerCase()`.
+**Root Cause 5:** `step 2` (Poseidon) used a hex string for salt without `0x` prefix, crashing `BigInt()`.
+**Fix 5:** Prepended `0x` to salt in `verify.tsx`.
 
-**Root Cause 4:** `useLocalSearchParams` hook was called inside an async function.
-**Fix 4:** Lifted hook call to component top-level in `verify.tsx`.
+**Root Cause 6:** `auth-store.ts` keyed salts by `type` (normalized), but `approve-request.tsx` reads by `id`. Also `demo-age` type was "Identity", SDK wanted "Age Verification".
+**Fix 6:** Updated `auth-store.ts` to use `salt_${cred.id}` and changed type to "Age Verification".
 
 **Action:** Updated `package.json` to auto-open tunnel (`--tunnel`) for `dev:wallet`.
 
