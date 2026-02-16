@@ -18,6 +18,12 @@
 **Root Cause 6:** `auth-store.ts` keyed salts by `type` (normalized), but `approve-request.tsx` reads by `id`. Also `demo-age` type was "Identity", SDK wanted "Age Verification".
 **Fix 6:** Updated `auth-store.ts` to use `salt_${cred.id}` and changed type to "Age Verification".
 
+**Root Cause 7 (ZK Stuck):** `ZKEngine` had no timeout/error handling. Added 20s timeout and `onerror` for scripts.
+**Fix 7:** Updated `ZKEngine.tsx`.
+
+**Root Cause 8 (Demo Mismatch):** Old demo credentials persisted.
+**Fix 8:** Updated `seedDemoData` to auto-clear `demo-*` IDs.
+
 **Action:** Updated `package.json` to auto-open tunnel (`--tunnel`) for `dev:wallet`.
 
 **Root Cause:** The `Shield` icon component was used in the JSX but was missing from the import statement in `app/(tabs)/index.tsx`.
