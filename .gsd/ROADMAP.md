@@ -10,13 +10,13 @@
 
 ## Phases
 
-### Phase 1: Foundation & Hashing Stability
-**Status**: 🔵 In Progress
-**Objective**: Fix the current WebAssembly/Poseidon crashes and establish a stable build.
-**Requirements**: REQ-01, TECH-02
+### Phase 1: Foundation & WebView ZK
+**Status**: ✅ Complete
+**Objective**: Implement stable ZK proof generation using the **WebView Strategy** to bypass Hermes WASM limitations in Expo Go.
+**Requirements**: REQ-01, TECH-01
 
 ### Phase 2: Credential & Local Hashing
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Implement local credential storage and JSON import.
 **Requirements**: REQ-02, REQ-04
 
@@ -25,7 +25,7 @@
 **Objective**: Build the wallet session dashboard and Relay revocation logic.
 **Requirements**: REQ-06, REQ-07
 
-### Phase 4: SDK Refinement & Multi-Claim
+### Phase 4: SDK Refinement & Production Prep
 **Status**: ⬜ Not Started
-**Objective**: Update SDK for better polling and add "Student Status" claim.
-**Requirements**: REQ-05, REQ-08
+**Objective**: Update SDK for better polling and optimize assets for **Expo Go** distribution.
+**Requirements**: REQ-05, REQ-08, TECH-01

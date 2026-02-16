@@ -12,6 +12,7 @@ Zero Auth is a privacy-first, passwordless authentication ecosystem that replace
 4.  **Selective Disclosure**: Enable specific claims like "Is over 18", "Is a Student", or "Accredited Investor" without revealing birth dates, school names, or financial balances.
 5.  **Session Revocation**: Give users visibility and control over active authenticated sessions.
 6.  **Digital Badging**: Prove specific skills or certifications (e.g., "Senior Developer") via localized badge credentials.
+7.  **Standalone Distribution**: Deliver the wallet as a standard APK, independent of the Expo Go ecosystem, for production-ready deployment.
 
 ## Non-Goals (Out of Scope for MVP)
 -   Biometric backup/recovery (Identity Recovery).

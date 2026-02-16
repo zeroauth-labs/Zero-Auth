@@ -8,16 +8,17 @@ Zero Auth is a ZK-based passwordless authentication system. The project is in a 
 ## Current Milestone: v1.0 — MVP Initialization
 **Status**: 🔵 In Progress
 
-## Last Session Summary
-- Reset codebase to commit `c15959a`.
-- Performed codebase mapping (`/map`).
-- Created `ARCHITECTURE.md` and `STACK.md`.
-- Identified technical debt in Poseidon hashing and WebAssembly support in React Native.
+- **Phase**: Phase 3: Session Management & Revocation
+- **Task**: Planning complete (Plans 3.1, 3.2, 3.3 formulated)
+- **Status**: Ready for execution
 
-## TODO for Next Session
-- Create `SPEC.md` based on the latest user vision.
-- Decompose requirements into executable phases in `ROADMAP.md`.
-- Resolve the hashing stability issue in the wallet (Phase 12 in legacy task list).
+## Last Session Summary
+- Established WebView ZK Bridge (Phase 1).
+- Implemented async verification and JSON import (Phase 2).
+- Verified data integrity and performance targets.
+
+## Next Steps
+1. `/plan 3` to design Session Management and Revocation logic.
 
 ## Active Decisions
 - Use `snarkjs` / `circomlibjs` for ZK logic across the stack.
