@@ -43,5 +43,5 @@ Formalize the ZK asset bundling process and define a strict type system for the 
 </task>
 
 ## Success Criteria
-- [ ] `npm run bundle:zk` generates reproducible assets.
-- [ ] Bridge types cover all current use cases (Prove, Hash).
+- [x] `npm run bundle:zk` generates reproducible assets.
+- [x] Bridge types cover all current use cases (Prove, Hash).

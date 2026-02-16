@@ -1,6 +1,24 @@
-# Debug Session: Runtime ReferenceError (Shield)
+# Debug Session: ZKEngine Startup Crash
 
-## Symptom 3: SecureStore Invalid Key Error
+## Symptom 3 (New): ZKEngine Crash on Load
+**Description:** `TypeError: Cannot read property 'prototype' of undefined` in `_layout.tsx` within `Blob` polyfill, triggered by `snarkjs` import. Also `Module "undefined" is missing from the asset registry`.
+**Location:** `app/_layout.tsx:45`, `components/ZKEngine.tsx:43`
+**Cause:**
+1. `snarkjs.min.js` executes on `require` if extension is `.js`.
+2. It calls `new Blob`.
+3. `global.Blob` in `_layout.tsx` tries `require('buffer').Blob`, which was undefined, causing crash.
+4. `Asset.fromModule` failed because `require` threw.
+
+## Resolution
+**Root Cause:** `buffer` polyfill lacks `Blob` export, and Metro treats `.js` as code not asset.
+**Fix:**
+1. Patched `app/_layout.tsx` to fallback to `NativeBlob` if `buffer.Blob` is missing.
+2. Renamed `assets/snarkjs.min.js` -> `assets/snarkjs.bundle` (and `poseidon.bundle`).
+3. Added `bundle` to `metro.config.js` `assetExts`.
+4. Updated `ZKEngine.tsx` to require `.bundle` files.
+**Action:** User must run `npx expo start -c` to clear cache.
+
+## Symptom 1 (Old): SecureStore Invalid Key Error
 **Description:** `Error: Invalid key provided to SecureStore`.
 **Location:** `store/auth-store.ts:203`
 **Cause:** key `salt_${cred.type}` contains spaces (e.g., "Student ID"), which SecureStore forbids.
@@ -18,8 +36,8 @@
 **Root Cause 6:** `auth-store.ts` keyed salts by `type` (normalized), but `approve-request.tsx` reads by `id`. Also `demo-age` type was "Identity", SDK wanted "Age Verification".
 **Fix 6:** Updated `auth-store.ts` to use `salt_${cred.id}` and changed type to "Age Verification".
 
-**Root Cause 7 (ZK Stuck):** `ZKEngine` had no timeout/error handling. Added 20s timeout and `onerror` for scripts.
-**Fix 7:** Updated `ZKEngine.tsx`.
+**Root Cause 7 (ZK Stuck):** `ZKEngine` had no timeout/error handling. Added 20s timeout and `onerror` for scripts. Also, external CDNs were unreliable.
+**Fix 7:** Updated `ZKEngine.tsx` to bundle `snarkjs` and `poseidon` locally, ensuring offline capability.
 
 **Root Cause 8 (Demo Mismatch):** Old demo credentials persisted.
 **Fix 8:** Updated `seedDemoData` to auto-clear `demo-*` IDs.

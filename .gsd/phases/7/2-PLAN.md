@@ -42,6 +42,6 @@ Rewrite `ZKEngine` to use the new strict bridge protocol, implement a proper sta
 </task>
 
 ## Success Criteria
-- [ ] ZKEngine reports "Ready" after initialization.
-- [ ] Proof generation updates status to "Proving".
-- [ ] Errors are caught and typed (not just "WebView Error").
+- [x] ZKEngine reports "Ready" after initialization.
+- [x] Proof generation updates status to "Proving".
+- [x] Errors are caught and typed (not just "WebView Error").

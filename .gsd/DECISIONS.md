@@ -11,3 +11,11 @@ The next phase will prioritize making the system "testable" as a complete produc
 
 ### Decision: Expo Go Compatibility
 Maintain Expo Go compatibility for now to simplify the development and testing workflow for the user.
+
+## Phase 7: ZK Overhaul
+**Date:** 2026-02-16
+
+### Decision: In-Place Rewrite vs. Delete
+We chose to **rewrite the internals** of `ZKEngine` and `proof.ts` in-place rather than deleting files.
+- **Reason**: Preserves the `useZKEngine` hook API, minimizing disruption to the rest of the application (screens, stores).
+- **Scope**: Internal implementation change (untyped bridge -> typed bridge; string assets -> bundled assets).
