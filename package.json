@@ -1,0 +1,16 @@
+{
+    "name": "zero-auth-ecosystem",
+    "version": "1.0.0",
+    "description": "Zero Auth Monorepo Orchestration",
+    "scripts": {
+        "dev:relay": "cd zero-auth-relay && npm run dev",
+        "dev:sdk": "cd zero-auth-sdk/examples/basic && npm run dev",
+        "dev:wallet": "cd zero-auth-wallet && npx expo start",
+        "dev:all": "concurrently \"npm run dev:relay\" \"npm run dev:sdk\" \"npm run dev:wallet\"",
+        "install:all": "npm install && cd zero-auth-relay && npm install && cd ../zero-auth-sdk && npm install && cd ../zero-auth-wallet && npm install"
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2",
+        "wait-on": "^7.2.0"
+    }
+}
