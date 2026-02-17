@@ -5,22 +5,22 @@
 ## Project Context
 Zero Auth is a ZK-based passwordless authentication system. The project is in a brownfield state with three core components already initialized: Wallet, Relay, and SDK.
 
-## Current Milestone: v1.0 — MVP Initialization
+## Current Status: Stabilization & Demo Prep
 **Status**: 🔵 In Progress
 
-- **Phase**: Phase 7: ZK Generation Overhaul (completed)
-- **Task**: All tasks complete
-- **Status**: 🟢 Verified
+- **Phase**: Phase 7: ZK Generation Overhaul
+- **Status**: 🟢 Core logic verified; 🟡 Network reachability issues on physical devices.
 
 ## Last Session Summary
-## Last Session Summary
-- Fixed Relay Redis port (changed 6374 to 6379).
-- Diagnosed potential Expo Go network/cache issues.
+- Implemented **WebView ZK Bridge (v7)** with `poseidon-lite` support, bypassing Hermes WASM limits.
+- Added **Public URL Resolution** in the Relay to support physical mobile devices via tunnels.
+- Added **CORS & Tunnel Bypass Headers** in the SDK for Localtunnel/ngrok compatibility.
 
 ## Next Steps
-1. Execute `/plan 7` to define the ZK Generation Overhaul.
-2. Review `TESTING.md` and verify the walkthrough.
+1. Implement **Mock Demo Mode** in the SDK to bypass network reliability issues for the presentation.
+2. Finalize verification of the full end-to-end flow with the new tunnel configuration.
 
 ## Active Decisions
-- Use `snarkjs` / `circomlibjs` for ZK logic across the stack.
-- Multi-component project structure (Mono-repo style).
+- Use `react-native-webview` for the ZK execution sandbox.
+- Use `PUBLIC_URL` and `bypass-tunnel-reminder` headers to handle mobile NAT/hotspot firewalls.
+- Create a "Mock" fallback in the SDK for demo stability.

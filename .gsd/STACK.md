@@ -17,8 +17,9 @@
 |-------|------------|
 | UI Framework | Expo Router, NativeWind (Tailwind) |
 | State Management | Zustand |
-| Cryptography | `snarkjs`, `circomlibjs`, `@noble/hashes` |
-| Hashing | Poseidon |
+| ZK Bridge | `react-native-webview` (Execution sandbox) |
+| Cryptography | `snarkjs`, `poseidon-lite` (within WebView) |
+| Hashing | Poseidon (BN128) |
 | ZK Protocol | Groth16 |
 | Storage | `expo-secure-store`, `async-storage` |
 | Build Tool | Metro |
@@ -52,3 +53,8 @@
 | `PORT` | Relay API port | `zero-auth-relay/.env` |
 | `REDIS_URL` | Session storage | `zero-auth-relay/.env` |
 | `RELAY_DID` | Identifier for the relay | `zero-auth-relay/.env` |
+| `PUBLIC_URL` | Tunnel/Public endpoint | `zero-auth-relay/.env` |
+
+## Infrastructure & Tunnels
+- **Localtunnel**: Used for exposing Relay to physical mobile devices.
+- **Expo Tunnel**: Metro bundler reachability.

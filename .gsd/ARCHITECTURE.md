@@ -33,10 +33,10 @@ graph TD
 - **Purpose**: Mobile app for storing credentials and local ZK proof generation.
 - **Location**: `zero-auth-wallet/`
 - **Key Files**: 
-    - `lib/proof.ts`: ZK proof generation logic (using `snarkjs`).
-    - `lib/hashing.ts`: Poseidon hashing implementation.
-    - `store/auth-store.ts`: Secure local storage for credentials.
-- **Dependencies**: React Native (Expo), Snarkjs, Circomlibjs.
+    - `components/ZKEngine.tsx`: The WebView-based ZK execution environment.
+    - `lib/proof.ts`: ZK proof generation logic (orchestrates the Bridge).
+    - `lib/hashing.ts`: Poseidon hashing implementation via Bridge.
+- **Dependencies**: React Native (Expo), `react-native-webview` (zkBridge), Snarkjs.
 
 ### 2. Zero Auth Relay (`zero-auth-relay/`)
 - **Purpose**: Stateless coordinator that manages sessions and provides server-side ZK verification.
@@ -66,10 +66,10 @@ graph TD
 
 ## Technical Debt
 
-- **Poseidon Optimization**: Current implementation in the wallet uses an unoptimized JS fallback due to WebAssembly constraints in React Native (Hermes).
-- **Hardcoded Configs**: Relay URL and other parameters are often hardcoded in the wallet/sdk.
-- **Missing Issuance Flow**: Credential issuance is currently mocked or requires manual entry in the wallet.
-- **Polyfill Complexity**: Wallet uses aggressive global polyfills for `buffer`, `crypto`, and `WebAssembly` to support `snarkjs`.
+- **Monorepo Complexity**: Deployment scripts rely on concurrent execution and manual URL configuration for local testing.
+- **Mocked Issuance**: Credential issuance is simplified for development; real signatures and issuer DIDs are pending.
+- **Manual Reachability**: Mobile development requires public tunnels (Localtunnel/ngrok) to bypass local NAT/firewalls.
+- **Bridge Asset Packaging**: ZK assets (wasm/zkey) are bundled/cached as base64 strings, increasing initial memory usage in the WebView.
 
 ## Conventions
 
