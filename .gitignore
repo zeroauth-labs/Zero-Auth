@@ -1,0 +1,35 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build
+dist/
+build/
+.expo/
+.next/
+out/
+
+# Env
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Agent / Tooling
+.agent/
+.gemini/
+.gsd/
+brain/
+implementation_plan.md
+task.md
+walkthrough.md
+
+# Misc
+dump.rdb
+.DS_Store
+Thumbs.db
+*.log
