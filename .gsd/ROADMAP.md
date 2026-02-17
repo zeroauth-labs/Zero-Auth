@@ -54,7 +54,15 @@
 - [x] `npm run bundle:zk` generates assets.
 - [x] `tsc` passes (Type safety verified).
 
-### Phase 8: Native Performance (Future Pivot)
+### Phase 8: System Stabilization (Real Network)
+**Status**: ✅ Complete
+**Objective**: ensure end-to-end reliability over real networks using tunnels (Ngrok) and robust error handling.
+**Tasks**:
+- [x] Refactor Relay services.
+- [x] Harden SDK against network failures & CORS.
+- [x] Verify physical device connectivity.
+
+### Phase 9: Native Performance (Future Pivot)
 **Status**: ⏸️ Deprioritized
 **Objective**: (Optional) Transition to native Rust if performance benchmarks degrade with complex circuits.
 **Requirements**: TECH-02
