@@ -1,8 +1,9 @@
 import NotificationModal from '@/components/NotificationModal';
 import SessionCard from '@/components/SessionCard';
 import { useAuthStore } from '@/store/auth-store';
+import { useNetworkStatus } from '@/lib/offline';
 import { useRouter } from 'expo-router';
-import { Bell, QrCode, ShieldCheck, ShieldAlert, BadgeCheck, Shield } from 'lucide-react-native';
+import { Bell, QrCode, ShieldCheck, ShieldAlert, BadgeCheck, Shield, WifiOff } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,6 +14,9 @@ export default function DashboardScreen() {
   const notifications = useAuthStore((state) => state.notifications);
   const [refreshing, setRefreshing] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  
+  // Network status for offline support
+  const { isOnline, queueCount } = useNetworkStatus();
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -43,6 +47,17 @@ export default function DashboardScreen() {
           </View>
         </View>
 
+        {/* Offline Indicator */}
+        {!isOnline && (
+          <View className="bg-yellow-500/20 border border-yellow-500/30 px-4 py-2 rounded-2xl mb-4 flex-row items-center justify-center gap-2">
+            <WifiOff size={16} color="#eab308" />
+            <Text className="text-yellow-500 text-center text-sm font-medium">
+              You're offline. Some features limited.
+              {queueCount > 0 && ` ${queueCount} action${queueCount > 1 ? 's' : ''} queued.`}
+            </Text>
+          </View>
+        )}
+
         {/* Security Health Card */}
         <View className="bg-card/50 border border-white/5 rounded-3xl p-5 mb-6 flex-row items-center gap-4">
           <View className="w-12 h-12 rounded-2xl bg-success/10 items-center justify-center border border-success/20">
@@ -68,10 +83,15 @@ export default function DashboardScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => router.push('/(tabs)/scanner')}
-            className="w-16 h-16 bg-[#16161e] border border-white/10 rounded-3xl items-center justify-center active:bg-white/5"
+            onPress={() => isOnline ? router.push('/(tabs)/scanner') : null}
+            disabled={!isOnline}
+            className={`w-16 h-16 border rounded-3xl items-center justify-center ${
+              isOnline 
+                ? 'bg-[#16161e] border-white/10 active:bg-white/5' 
+                : 'bg-[#16161e]/50 border-white/5 opacity-50'
+            }`}
           >
-            <BadgeCheck size={24} color="#7aa2f7" />
+            <BadgeCheck size={24} color={isOnline ? "#7aa2f7" : "#4a5568"} />
           </TouchableOpacity>
         </View>
 
