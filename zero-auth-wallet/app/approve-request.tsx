@@ -1,5 +1,6 @@
 import { generateProof } from '@/lib/proof';
 import { VerificationRequest } from '@/lib/qr-protocol';
+import { checkRevocationStatus, RevocationStatus } from '@/lib/revocation';
 import { useAuthStore } from '@/store/auth-store';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { BadgeCheck, Check, ShieldAlert, ShieldCheck, X } from 'lucide-react-native';
@@ -16,6 +17,8 @@ export default function ApproveRequestScreen() {
     const params = useLocalSearchParams();
     const [request, setRequest] = useState<VerificationRequest | null>(null);
     const [loading, setLoading] = useState(false);
+    const [revocationStatus, setRevocationStatus] = useState<RevocationStatus | null>(null);
+    const [checkingRevocation, setCheckingRevocation] = useState(false);
     const zkEngine = useZKEngine();
 
     // Get credentials to find a match
@@ -33,6 +36,15 @@ export default function ApproveRequestScreen() {
         }
     }, [params.request]);
 
+    // Check revocation status when matching credential is found
+    useEffect(() => {
+        if (matchingCredential && !revocationStatus) {
+            checkRevocationStatus(matchingCredential)
+                .then(result => setRevocationStatus(result.status))
+                .catch(() => setRevocationStatus('unknown'));
+        }
+    }, [matchingCredential]);
+
     const handleApprove = async () => {
         if (!matchingCredential) return;
 
@@ -49,6 +61,41 @@ export default function ApproveRequestScreen() {
                 setLoading(false);
                 return;
             }
+        }
+
+        // 2. Check Revocation Status Before Generating Proof (SEC-04)
+        setCheckingRevocation(true);
+        try {
+            const revocationResult = await checkRevocationStatus(matchingCredential);
+            setRevocationStatus(revocationResult.status);
+            
+            if (revocationResult.isRevoked) {
+                Alert.alert(
+                    "Credential Revoked",
+                    "This credential has been revoked and cannot be used for verification. Please contact your issuer for a new credential.",
+                    [{ text: "OK", onPress: () => router.back() }]
+                );
+                setLoading(false);
+                setCheckingRevocation(false);
+                return;
+            }
+            
+            if (revocationResult.status === 'unknown') {
+                // Show warning but allow proceeding
+                Alert.alert(
+                    "Warning: Unable to Verify",
+                    "We couldn't verify the revocation status of this credential. Do you want to proceed anyway?",
+                    [
+                        { text: "Cancel", style: "cancel", onPress: () => { setLoading(false); setCheckingRevocation(false); return; } },
+                        { text: "Proceed", onPress: () => {} }
+                    ]
+                );
+            }
+        } catch (e) {
+            console.warn("Revocation check failed:", e);
+            setRevocationStatus('unknown');
+        } finally {
+            setCheckingRevocation(false);
         }
 
         setLoading(true);
@@ -144,13 +191,38 @@ export default function ApproveRequestScreen() {
 
                     <Text className="text-muted-foreground text-xs font-bold uppercase mb-2 mt-2">Using Credential</Text>
                     {matchingCredential ? (
-                        <View className="flex-row items-center gap-3 bg-secondary/10 p-3 rounded-xl border border-secondary/20">
-                            <View className="w-10 h-10 bg-secondary/20 rounded-full items-center justify-center">
-                                <Check size={20} color="#bb9af7" />
+                        <View className="space-y-2">
+                            <View className="flex-row items-center gap-3 bg-secondary/10 p-3 rounded-xl border border-secondary/20">
+                                <View className="w-10 h-10 bg-secondary/20 rounded-full items-center justify-center">
+                                    <Check size={20} color="#bb9af7" />
+                                </View>
+                                <View>
+                                    <Text className="text-foreground font-bold">{matchingCredential.type}</Text>
+                                    <Text className="text-muted-foreground text-xs">{matchingCredential.issuer}</Text>
+                                </View>
                             </View>
-                            <View>
-                                <Text className="text-foreground font-bold">{matchingCredential.type}</Text>
-                                <Text className="text-muted-foreground text-xs">{matchingCredential.issuer}</Text>
+                            {/* Revocation Status Indicator */}
+                            <View className={`flex-row items-center gap-2 px-3 py-2 rounded-lg ${
+                                revocationStatus === 'valid' ? 'bg-green-500/10 border border-green-500/20' :
+                                revocationStatus === 'revoked' ? 'bg-red-500/10 border border-red-500/20' :
+                                revocationStatus === 'unknown' ? 'bg-yellow-500/10 border border-yellow-500/20' :
+                                'bg-muted/10 border border-muted/20'
+                            }`}>
+                                {revocationStatus === 'valid' && <BadgeCheck size={14} color="#4ade80" />}
+                                {revocationStatus === 'revoked' && <ShieldAlert size={14} color="#f87171" />}
+                                {revocationStatus === 'unknown' && <ShieldAlert size={14} color="#fbbf24" />}
+                                {!revocationStatus && <ShieldCheck size={14} color="#9ca3af" />}
+                                <Text className={`text-xs font-medium ${
+                                    revocationStatus === 'valid' ? 'text-green-400' :
+                                    revocationStatus === 'revoked' ? 'text-red-400' :
+                                    revocationStatus === 'unknown' ? 'text-yellow-400' :
+                                    'text-muted-foreground'
+                                }`}>
+                                    {revocationStatus === 'valid' ? 'Valid - Not Revoked' :
+                                     revocationStatus === 'revoked' ? 'REVOKED' :
+                                     revocationStatus === 'unknown' ? 'Status Unknown' :
+                                     'Checking...'}
+                                </Text>
                             </View>
                         </View>
                     ) : (
@@ -176,11 +248,11 @@ export default function ApproveRequestScreen() {
             <View className="gap-3">
                 <TouchableOpacity
                     onPress={handleApprove}
-                    disabled={!matchingCredential || loading}
-                    className={`p-4 rounded-xl flex-row items-center justify-center gap-2 ${!matchingCredential ? 'bg-muted' : 'bg-primary'
+                    disabled={!matchingCredential || loading || checkingRevocation}
+                    className={`p-4 rounded-xl flex-row items-center justify-center gap-2 ${!matchingCredential || loading || checkingRevocation ? 'bg-muted' : 'bg-primary'
                         }`}
                 >
-                    {loading ? (
+                    {loading || checkingRevocation ? (
                         <ActivityIndicator color="#1a1b26" />
                     ) : (
                         <>
