@@ -21,6 +21,7 @@ ZeroAuth delivers a passwordless credential verification system with three compo
 - [ ] 01-02-PLAN.md — QR Code Generation (WAL-04)
 - [ ] 01-03-PLAN.md — Revocation Status Check (SEC-04)
 - [ ] 01-04-PLAN.md — Offline Support (SEC-05)
+- [ ] 01-05-PLAN.md — WAL Requirements Verification
 **Success Criteria** (what must be TRUE):
   1. User can add credentials to wallet and revoke them on APK
   2. User can generate ZK proof and hash for verification requests
@@ -30,7 +31,7 @@ ZeroAuth delivers a passwordless credential verification system with three compo
   6. User can complete verification steps (e.g., age verification)
   7. User can check revocation status before presenting proofs
   8. App degrades gracefully when offline (shows cached state, queues actions)
-**Plans**: TBD
+**Plans**: 5 plans
 
 ### Phase 2: Keystore Integration + Recovery UX
 **Goal**: Secure key storage via Android Keystore with user-friendly recovery paths
@@ -59,7 +60,7 @@ ZeroAuth delivers a passwordless credential verification system with three compo
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. APK Parity + Release Hardening | 4 planned | Ready to execute | - |
+| 1. APK Parity + Release Hardening | 5 planned | Ready to execute | - |
 | 2. Keystore Integration + Recovery UX | 0/TBD | Not started | - |
 | 3. SDK/Proof Scaling + Compatibility | 0/TBD | Not started | - |
 
