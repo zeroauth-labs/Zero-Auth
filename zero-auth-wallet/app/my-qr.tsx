@@ -1,6 +1,9 @@
 import { useAuthStore } from '@/store/auth-store';
 import { useRouter } from 'expo-router';
-import { QrCode, ShieldCheck, X } from 'lucide-react-native';
+import { getQrPayload } from '@/lib/qr-display';
+import { getWalletIdentity } from '@/lib/wallet';
+import { ShieldCheck, X } from 'lucide-react-native';
+import QRCode from 'react-native-qrcode-svg';
 import { useEffect, useState } from 'react';
 import { Alert, Text, TouchableOpacity, View } from 'react-native';
 
@@ -8,9 +11,24 @@ export default function MyQrModal() {
     const router = useRouter();
     const addSession = useAuthStore((state) => state.addSession);
     const [simulating, setSimulating] = useState(false);
+    const [qrData, setQrData] = useState<string>('');
+    const [did, setDid] = useState<string>('');
 
     useEffect(() => {
-        // Real session handling will go here later
+        // Load wallet identity and generate QR payload
+        async function loadQrData() {
+            try {
+                const identity = await getWalletIdentity();
+                if (identity) {
+                    setDid(identity.did);
+                    const payload = await getQrPayload();
+                    setQrData(payload);
+                }
+            } catch (error) {
+                console.error('Failed to load QR data:', error);
+            }
+        }
+        loadQrData();
     }, []);
 
     return (
@@ -23,10 +41,20 @@ export default function MyQrModal() {
             </TouchableOpacity>
 
             <View className="bg-white p-6 rounded-3xl mb-8">
-                <QrCode size={200} color="#000" />
+                {qrData ? (
+                    <QRCode
+                        value={qrData}
+                        size={200}
+                    />
+                ) : (
+                    <Text className="text-gray-400">Loading...</Text>
+                )}
             </View>
 
             <Text className="text-foreground text-2xl font-bold mb-2">My Zero ID</Text>
+            {did ? (
+                <Text className="text-[#565f89] text-xs mb-4 font-mono">{did}</Text>
+            ) : null}
             <Text className="text-[#565f89] text-center mb-8">
                 Scan this code at supported terminals to verify your identity without sharing your data.
             </Text>
