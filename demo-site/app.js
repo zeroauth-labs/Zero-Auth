@@ -4,7 +4,7 @@
   'use strict';
 
   // Configuration
-  const DEFAULT_RELAY_URL = 'https://corrie-overluscious-nonderogatorily.ngrok-free.dev';
+  const DEFAULT_RELAY_URL = 'https://zeroauth-relay.onrender.com';
   const POLL_INTERVAL = 2000; // 2 seconds
 
   // State

@@ -7,6 +7,8 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <!-- Production environment configuration -->
+  <script>window.ENV = { RELAY_URL: 'https://zeroauth-relay.onrender.com' };</script>
   <div class="container">
     <header class="header">
       <h1>ZeroAuth Demo</h1>
@@ -75,7 +77,7 @@
                 type="url" 
                 id="relay-url" 
                 name="relay_url" 
-                value="https://corrie-overluscious-nonderogatorily.ngrok-free.dev"
+                value="https://zeroauth-relay.onrender.com"
                 placeholder="https://your-relay-url.com"
               >
             </div>
