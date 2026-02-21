@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZeroAuth Demo</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>ZeroAuth Demo</h1>
+      <span class="badge">Demo</span>
+    </header>
+
+    <main>
+      <!-- Settings Section (ABOVE FOLD) -->
+      <section id="settings-section" class="card">
+        <h2>Settings</h2>
+        <form id="settings-form">
+          <div class="form-group">
+            <label for="verifier-name">Verifier Name</label>
+            <input 
+              type="text" 
+              id="verifier-name" 
+              name="verifier_name" 
+              value="Demo Verifier"
+              placeholder="Enter verifier name"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="credential-type">Credential Type</label>
+            <select id="credential-type" name="credential_type">
+              <option value="Login">Login</option>
+              <option value="Age Verification">Age Verification</option>
+              <option value="Student Verification">Student Verification</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="claims-group">
+            <label>Requested Claims</label>
+            <div id="claims-checkboxes" class="checkbox-group">
+              <!-- Dynamically populated based on credential type -->
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="timeout">Timeout: <span id="timeout-value">60</span> seconds</label>
+            <input 
+              type="range" 
+              id="timeout" 
+              name="timeout" 
+              min="30" 
+              max="300" 
+              value="60" 
+              step="30"
+            >
+            <div class="range-labels">
+              <span>30s</span>
+              <span>5m</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <button type="button" id="toggle-advanced" class="btn-link">
+              Show Advanced Options ▾
+            </button>
+          </div>
+
+          <div id="advanced-options" class="advanced-options hidden">
+            <div class="form-group">
+              <label for="relay-url">Relay URL</label>
+              <input 
+                type="url" 
+                id="relay-url" 
+                name="relay_url" 
+                value="https://corrie-overluscious-nonderogatorily.ngrok-free.dev"
+                placeholder="https://your-relay-url.com"
+              >
+            </div>
+          </div>
+        </form>
+      </section>
+
+      <!-- Sign In Section (BELOW settings, ABOVE fold) -->
+      <section id="signin-section" class="card">
+        <button type="button" id="signin-btn" class="btn-primary btn-large">
+          Sign in using ZeroAuth
+        </button>
+        <p class="loading-text hidden" id="loading-text">
+          Generating QR code...
+        </p>
+      </section>
+
+      <!-- QR Display Area -->
+      <section id="qr-section" class="card hidden">
+        <div class="qr-container">
+          <canvas id="qr-canvas"></canvas>
+        </div>
+        <div class="session-info">
+          <p><strong>Verifier:</strong> <span id="session-verifier">-</span></p>
+          <p><strong>Claims:</strong> <span id="session-claims">-</span></p>
+          <p><strong>Time remaining:</strong> <span id="countdown">60</span>s</p>
+        </div>
+        <button type="button" id="cancel-btn" class="btn-secondary">
+          Cancel
+        </button>
+      </section>
+
+      <!-- Verification Result Area -->
+      <section id="result-section" class="card hidden">
+        <div id="result-content"></div>
+        <button type="button" id="try-again-btn" class="btn-primary">
+          Try Again
+        </button>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>Powered by <a href="https://github.com/zero-auth/zero-auth" target="_blank" rel="noopener">ZeroAuth</a></p>
+    </footer>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
