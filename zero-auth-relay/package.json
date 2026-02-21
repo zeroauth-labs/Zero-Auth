@@ -7,8 +7,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
-    "build": "tsc",
-    "build:js": "tsc"
+    "build": "tsc --noEmit"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",

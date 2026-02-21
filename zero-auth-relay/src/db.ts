@@ -43,7 +43,7 @@ export async function createSession(
     verifier_name: verifierName,
     required_claims: requiredClaims,
     status: 'PENDING',
-    proof: null,
+    proof: undefined,
     expires_at: expiresAt,
   };
 
