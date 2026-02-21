@@ -14,8 +14,8 @@
     countdownTimer: null,
     settings: {
       verifier_name: 'Demo Verifier',
-      credential_type: 'Login',
-      claims: ['email_verified', 'phone_verified'],
+      credential_type: 'Age Verification',
+      claims: ['birth_year', 'country'],
       timeout: 60,
       relay_url: DEFAULT_RELAY_URL
     }
@@ -23,25 +23,24 @@
 
   // Claim definitions by credential type
   const CLAIMS_BY_TYPE = {
-    'Login': [
-      { id: 'email_verified', label: 'Email Verified' },
-      { id: 'phone_verified', label: 'Phone Verified' }
-    ],
     'Age Verification': [
-      { id: 'over_18', label: 'Over 18' },
-      { id: 'over_21', label: 'Over 21' }
+      { id: 'birth_year', label: 'Birth Year' },
+      { id: 'country', label: 'Country' }
     ],
     'Student Verification': [
-      { id: 'student_status', label: 'Student Status' },
-      { id: 'enrollment_date', label: 'Enrollment Date' }
+      { id: 'expiry_year', label: 'Expiry Year' },
+      { id: 'university', label: 'University' }
+    ],
+    'Trial': [
+      { id: 'trial_period', label: '7 Days' }
     ]
   };
 
   // Use case mapping
   const USE_CASE_MAP = {
-    'Login': { credential_type: 'Login', claims: ['email', 'phone'] },
-    'Age Verification': { credential_type: 'Age', claims: ['over_18', 'over_21'] },
-    'Student Verification': { credential_type: 'Student', claims: ['student_status', 'enrollment_date'] }
+    'Age Verification': { credential_type: 'Age Verification', claims: ['birth_year', 'country'] },
+    'Student Verification': { credential_type: 'Student ID', claims: ['expiry_year', 'university'] },
+    'Trial': { credential_type: 'Trial', claims: ['trial_period'] }
   };
 
   // DOM Elements
