@@ -1,8 +1,3 @@
 # Build settings
 title: ZeroAuth Demo
 description: ZeroAuth - Passwordless Credential Verification
-theme: jekyll-theme-minimal
-
-# GitHub Pages source
-# For publishing from a subfolder (demo-site), use:
-future: true
