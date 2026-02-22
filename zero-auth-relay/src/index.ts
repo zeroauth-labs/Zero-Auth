@@ -5,7 +5,7 @@ import rateLimit from 'express-rate-limit';
 import { createSession, getSession, updateSession, cleanupExpiredSessions } from './db.js';
 import { validateSessionCreation, validateProofSubmission } from './validation.js';
 import { ErrorCode, createError, SUPPORTED_CREDENTIAL_TYPES, isValidClaims } from './errors.js';
-import { verifyProof, loadVerificationKey, isVerificationEnabled } from './zk.js';
+import { verifyProof, loadVerificationKey, isVerificationEnabled, computeProofHash } from './zk.js';
 
 const app = express();
 app.use(cors());
@@ -113,9 +113,24 @@ app.post('/api/v1/sessions/:id/proof', validateProofSubmission, async (req, res)
       return res.status(400).json(createError(ErrorCode.SESSION_ALREADY_COMPLETED, 'Session already completed'));
     }
 
+    // Get proof from request (either wrapped in "proof" key or direct)
+    const proof = req.body;
+    const proofData = proof?.proof || proof;
+
+    // Proof Replay Protection - check for duplicate proof hash
+    const proofHash = computeProofHash(proofData as Record<string, unknown>);
+    
+    // Check if this proof hash already exists in the session
+    if (session.proof_hash && session.proof_hash === proofHash) {
+      console.log('[Replay] Duplicate proof detected');
+      return res.status(400).json(createError(
+        ErrorCode.DUPLICATE_PROOF,
+        'This proof has already been submitted'
+      ));
+    }
+
     // Validate required_claims against proof
     const sessionRequiredClaims = session.required_claims;
-    const proof = req.body;
 
     // Handle required_claims as either array or JSON string from database
     let claimsArray: string[] = [];
@@ -136,7 +151,7 @@ app.post('/api/v1/sessions/:id/proof', validateProofSubmission, async (req, res)
       // The proof contains pi_a, pi_b, pi_c, etc. which prove the claim without revealing data
       // So we just verify that a proof was submitted (contains proof data)
       
-      const hasProofData = proof?.proof?.pi_a || proof?.pi_a;
+      const hasProofData = proofData && (proofData.pi_a || (proofData as Record<string, unknown>).pi_a);
       
       if (!hasProofData) {
         return res.status(400).json(createError(
@@ -146,7 +161,6 @@ app.post('/api/v1/sessions/:id/proof', validateProofSubmission, async (req, res)
       }
       
       // ZK Proof Verification - cryptographically verify the proof
-      const proofData = proof?.proof || proof;
       const isValid = await verifyProof(proofData as Record<string, unknown>);
       
       if (!isValid) {
@@ -163,7 +177,8 @@ app.post('/api/v1/sessions/:id/proof', validateProofSubmission, async (req, res)
     console.log('About to update session...');
     await updateSession(req.params.id, {
       status: 'COMPLETED',
-      proof: proof,
+      proof: proofData,
+      proof_hash: proofHash,
     });
     console.log('Session updated successfully');
 

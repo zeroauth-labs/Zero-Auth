@@ -11,6 +11,7 @@ export interface Session {
   required_claims?: Record<string, unknown>;
   status: string;
   proof?: Record<string, unknown>;
+  proof_hash?: string;
   created_at?: string;
   expires_at: string;
 }

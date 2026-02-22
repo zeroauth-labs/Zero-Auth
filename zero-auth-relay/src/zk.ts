@@ -2,6 +2,7 @@
 
 import * as snarkjs from 'snarkjs';
 import * as fs from 'fs';
+import * as crypto from 'crypto';
 
 // Using any for verification key - snarkjs types don't match actual exports
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -118,4 +119,16 @@ export function getVerificationKey(): any {
 export function resetVerificationKey(): void {
   verificationKey = null;
   verificationKeyLoaded = false;
+}
+
+/**
+ * Compute a SHA-256 hash of a proof for replay protection
+ * @param proof - The proof object to hash
+ * @returns Hex string of the proof hash
+ */
+export function computeProofHash(proof: Record<string, unknown>): string {
+  // Create deterministic string representation by sorting keys
+  const proofStr = JSON.stringify(proof, Object.keys(proof).sort());
+  // Use SHA-256 hash
+  return crypto.createHash('sha256').update(proofStr).digest('hex');
 }
