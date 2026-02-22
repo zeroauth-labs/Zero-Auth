@@ -2,29 +2,30 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md
+See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Users can prove and verify credentials without passwords in a secure, seamless flow.
-**Current focus:** Milestone v1.1 - Phase 5: Real ZK Flows + SDK
+**Current focus:** v1.1 shipped, v1.2 Credential Validation in progress
 
 ## Current Position
 
-Phase: 08-credential-validation (Phase 8 of 4 in v1.1)
-Plan: Planning
-Status: Ready
-Last activity: 2026-02-22 — Phase 8 plan created
+Phase: 08-credential-validation (Phase 8 of v1.2)
+Plan: In Progress
+Status: Executing
+Last activity: 2026-02-22 — v1.1 milestone completed
 
-Progress: [██████████] 100% (Milestone v1.1 complete + Phase 8)
+Progress: [████████░░] 90% (v1.1 complete, v1.2 in progress)
 
 ## Pending Todos
 
-- Fix credential validation logic (approve-request.tsx, demo-site, auth-store)
+- Complete Phase 8: Credential Validation
+- Test SDK on live demo site
 
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Phase 8 plan created
-Next: `/gsd-execute-phase 8`
+Stopped at: v1.1 milestone complete
+Next: Continue Phase 8 or start new milestone
 
 ---
 

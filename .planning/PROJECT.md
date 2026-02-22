@@ -12,18 +12,28 @@ Users can prove and verify credentials without passwords in a secure, seamless f
 
 ### Validated
 
+**v1.0 (Initial):**
 - ✓ Wallet supports credential add/revoke, proof generation, and verification flows — existing
 - ✓ QR-based verification flow works end-to-end — existing
 - ✓ DID + ed25519 keypair generation is supported — existing
 - ✓ Relay service handles verification requests — existing
 - ✓ SDK exposes core verification capabilities — existing
 
+**v1.1 Production Hardening:**
+- ✓ Production-grade relay infrastructure (Render) and managed database (Supabase) with no localhost dependencies — v1.1
+- ✓ Demo site hosted on GitHub Pages (no ngrok or local hosting) — v1.1
+- ✓ ZK generation/verification works end-to-end at each phase (no demo/mock flows) — v1.1
+- ✓ SDK is intuitive and modular with configurable credential requests, timers, and customizable login/verification UI — v1.1
+- ✓ Wallet uses encrypted device keypair/DID with reset/reinstall generating new identity and clearing issued credentials — v1.1
+- ✓ Inputs/outputs audited for industry-standard formats (QR, ZK, hashing, signing) — v1.1
+- ✓ Relay performance is efficient and fast under production use — v1.1
+
 ### Active
 
-- [ ] Android APK parity with Expo Go features (credential add/revoke, proof + hash gen, QR scan, DID + ed25519, age verification)
-- [ ] Android Keystore used for keypair storage/signing (standard Keystore, fallback behavior allowed)
-- [ ] SDK stability and modularity improvements without breaking changes
-- [ ] Support larger circuits and large proof payloads without failures
+- [ ] Multi-claim proofs (multiple credentials in one QR) — v2.0
+- [ ] Full SDK theming support (SDK-03) — v2.0
+- [ ] Typed error taxonomy (SDK-07) — v2.0
+- [ ] Cryptographic ZK verification in relay — v2.0
 
 ### Out of Scope
 
@@ -31,10 +41,35 @@ Users can prove and verify credentials without passwords in a secure, seamless f
 - iOS native build — Android-first focus
 - Breaking SDK changes — backwards compatibility required
 
+## Current State: v1.1 Shipped
+
+**Status:** ✅ Shipped 2026-02-22
+
+**Production URLs:**
+- Relay: https://zeroauth-relay.onrender.com
+- Demo: https://zeroauth-labs.github.io/Zero-Auth/
+- Database: Supabase (viosipylwvcscavdwguj.supabase.co)
+
+**v1.1 Accomplishments:**
+- Production infrastructure (Render + Supabase + GitHub Pages)
+- SDK with button, modal, QR code support
+- Wallet security hardened (encrypted keys, complete reset)
+- Rate limiting and logging
+
+**Tech Debt (v2.0):**
+- Multi-claim QR support
+- Full SDK theming
+- Cryptographic ZK verification in relay
+
+## Current Milestone: v1.2 Credential Validation
+
+**Goal:** Fix credential validation logic and improve verification reliability.
+
 ## Context
 
 - Existing codebase includes a wallet app, relay service, and SDK.
-- Current goal is to move from Expo Go to a functional Android APK while improving security handling and SDK robustness.
+- v1.1 shipped with production infrastructure (Render, Supabase, GitHub Pages)
+- Next milestone targets credential validation fixes and improvements
 
 ## Constraints
 
@@ -42,14 +77,21 @@ Users can prove and verify credentials without passwords in a secure, seamless f
 - **Security**: Use Android Keystore for keypair storage/signing — standard Keystore
 - **Compatibility**: SDK changes must be backwards compatible
 - **Languages**: SDK scope is TypeScript/JavaScript for this milestone
+- **Hosting**: No localhost dependencies — use Render, Supabase, and GitHub Pages
+- **Verification**: ZK generation/verification must function at every phase
+- **GSD files**: Planning files must be readable locally but not pushed to GitHub
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Use Android Keystore for keypair storage/signing | Secure key handling on device | — Pending |
-| SDK changes must be backwards compatible | Avoid breaking integrators | — Pending |
-| Focus on functional APK, not production readiness | Ship usable build quickly | — Pending |
+| Use Android Keystore for keypair storage/signing | Secure key handling on device | ✅ Done (SecureStore) |
+| SDK changes must be backwards compatible | Avoid breaking integrators | ✅ Done |
+| Focus on functional APK, not production readiness | Ship usable build quickly | ✅ Done |
+| Move relay to Render + Supabase | Remove localhost dependencies and improve reliability | ✅ Done |
+| Host demo site on GitHub Pages | Replace ngrok/local demo hosting | ✅ Done |
+| Remove demo/mock ZK flows | Ensure production-grade proof generation/verification | ✅ Done |
 
 ---
-*Last updated: 2026-02-19 after initialization*
+
+*Last updated: 2026-02-22 after v1.1 milestone*

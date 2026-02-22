@@ -20,8 +20,10 @@ export interface VerificationRequest {
  * Returns a VerificationRequest if valid, or null if invalid.
  */
 export function parseVerificationQR(data: string): VerificationRequest | null {
+    console.log("QR Data received:", data);
     try {
         const payload = JSON.parse(data);
+        console.log("Parsed payload:", JSON.stringify(payload));
 
         // Basic structural validation
         if (

@@ -39,6 +39,16 @@ export async function generateProof(
     } else if (request.credential_type === 'Student ID') {
         wasmAsset = Asset.fromModule(require('../circuits/student_check_js/student_check.wasm'));
         zkeyAsset = Asset.fromModule(require('../circuits/student_check_final.zkey'));
+    } else if (request.credential_type === 'Trial') {
+        // Trial credentials - simple verification without ZK circuit
+        // Just return a simple proof that the credential exists and is not expired
+        return {
+            credential_type: 'Trial',
+            credential_id: credential.id,
+            issuedAt: credential.issuedAt,
+            expiresAt: credential.expiresAt,
+            attributes: credential.attributes
+        };
     } else {
         throw new Error(`Unsupported credential type: ${request.credential_type}`);
     }

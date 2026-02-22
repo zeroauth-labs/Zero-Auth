@@ -4,7 +4,7 @@ import { checkRevocationStatus, RevocationStatus } from '@/lib/revocation';
 import { useAuthStore } from '@/store/auth-store';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { BadgeCheck, Check, ShieldAlert, ShieldCheck, X } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { ActivityIndicator, Alert, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
@@ -21,8 +21,60 @@ export default function ApproveRequestScreen() {
     const [checkingRevocation, setCheckingRevocation] = useState(false);
     const zkEngine = useZKEngine();
 
+    // Timer state for time-bound requests
+    const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+    const countdownRef = useRef<NodeJS.Timeout | null>(null);
+
     // Get credentials to find a match
     const credentials = useAuthStore((state) => state.credentials);
+
+    // Matching logic: find a credential that has ALL required claims
+    const matchingCredential = request ? credentials.find(c => {
+        if (c.type !== request.credential_type) return false;
+        
+        // Check if credential has ALL required claims
+        const credentialAttrs = Object.keys(c.attributes);
+        const hasAllClaims = request.required_claims.every(claim => 
+            credentialAttrs.includes(claim)
+        );
+        
+        return hasAllClaims;
+    }) : null;
+
+    // Countdown timer effect
+    useEffect(() => {
+        if (!request?.expires_at) return;
+
+        const calculateRemaining = () => {
+            const now = Math.floor(Date.now() / 1000);
+            const remaining = request.expires_at - now;
+            return remaining > 0 ? remaining : 0;
+        };
+
+        setTimeRemaining(calculateRemaining());
+
+        countdownRef.current = setInterval(() => {
+            const remaining = calculateRemaining();
+            setTimeRemaining(remaining);
+            
+            if (remaining <= 0) {
+                if (countdownRef.current) clearInterval(countdownRef.current);
+                Alert.alert("Expired", "This verification request has expired.", [
+                    { text: "OK", onPress: () => router.back() }
+                ]);
+            }
+        }, 1000);
+
+        return () => {
+            if (countdownRef.current) clearInterval(countdownRef.current);
+        };
+    }, [request?.expires_at]);
+
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
 
     useEffect(() => {
         if (params.request) {
@@ -35,15 +87,6 @@ export default function ApproveRequestScreen() {
             }
         }
     }, [params.request]);
-
-    // Check revocation status when matching credential is found
-    useEffect(() => {
-        if (matchingCredential && !revocationStatus) {
-            checkRevocationStatus(matchingCredential)
-                .then(result => setRevocationStatus(result.status))
-                .catch(() => setRevocationStatus('unknown'));
-        }
-    }, [matchingCredential]);
 
     const handleApprove = async () => {
         if (!matchingCredential) return;
@@ -158,9 +201,6 @@ export default function ApproveRequestScreen() {
 
     if (!request) return <View className="flex-1 bg-background" />;
 
-    // Simple matching logic: find a credential of the requested type
-    const matchingCredential = credentials.find(c => c.type === request.credential_type);
-
     return (
         <SafeAreaView className="flex-1 bg-background p-6">
             <View className="flex-1">
@@ -172,6 +212,13 @@ export default function ApproveRequestScreen() {
                     <Text className="text-muted-foreground uppercase text-xs font-bold tracking-widest mb-2">Verification Request</Text>
                     <Text className="text-foreground text-2xl font-bold text-center">{request.verifier.name}</Text>
                     <Text className="text-primary text-xs font-mono mt-1">{request.verifier.did}</Text>
+                    {timeRemaining !== null && timeRemaining > 0 && (
+                        <View className={`mt-2 px-3 py-1 rounded-full ${timeRemaining < 60 ? 'bg-red-500/20 border border-red-500/40' : 'bg-primary/20 border border-primary/40'}`}>
+                            <Text className={`text-xs font-mono ${timeRemaining < 60 ? 'text-red-400' : 'text-primary'}`}>
+                                Expires in: {formatTime(timeRemaining)}
+                            </Text>
+                        </View>
+                    )}
                 </View>
 
                 {/* Request Details */}
@@ -228,7 +275,12 @@ export default function ApproveRequestScreen() {
                     ) : (
                         <View className="flex-row items-center gap-3 bg-error/10 p-3 rounded-xl border border-error/20">
                             <ShieldAlert size={20} color="#f7768e" />
-                            <Text className="text-error font-bold">No matching credential found</Text>
+                            <View>
+                                <Text className="text-error font-bold">No matching credential found</Text>
+                                <Text className="text-[#565f89] text-xs">
+                                    Requesting: {request.required_claims.join(', ')}
+                                </Text>
+                            </View>
                         </View>
                     )}
                 </View>
@@ -248,8 +300,8 @@ export default function ApproveRequestScreen() {
             <View className="gap-3">
                 <TouchableOpacity
                     onPress={handleApprove}
-                    disabled={!matchingCredential || loading || checkingRevocation}
-                    className={`p-4 rounded-xl flex-row items-center justify-center gap-2 ${!matchingCredential || loading || checkingRevocation ? 'bg-muted' : 'bg-primary'
+                    disabled={!matchingCredential || loading || checkingRevocation || (timeRemaining !== null && timeRemaining <= 0)}
+                    className={`p-4 rounded-xl flex-row items-center justify-center gap-2 ${(!matchingCredential || loading || checkingRevocation || (timeRemaining !== null && timeRemaining <= 0)) ? 'bg-muted' : 'bg-primary'
                         }`}
                 >
                     {loading || checkingRevocation ? (
