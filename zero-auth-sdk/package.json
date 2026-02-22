@@ -1,0 +1,22 @@
+{
+  "name": "@zero-auth/sdk",
+  "version": "1.0.0",
+  "description": "ZeroAuth SDK - Passwordless credential verification",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "keywords": [
+    "zeroauth",
+    "zk",
+    "credential",
+    "verification",
+    "passwordless"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
