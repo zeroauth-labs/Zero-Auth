@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import { createSession, getSession, updateSession, cleanupExpiredSessions } from './db.js';
 import { validateSessionCreation, validateProofSubmission } from './validation.js';
 import { ErrorCode, createError, SUPPORTED_CREDENTIAL_TYPES, isValidClaims } from './errors.js';
+import { verifyProof, loadVerificationKey, isVerificationEnabled } from './zk.js';
 
 const app = express();
 app.use(cors());
@@ -144,9 +145,19 @@ app.post('/api/v1/sessions/:id/proof', validateProofSubmission, async (req, res)
         ));
       }
       
-      // For now, we trust the ZK proof since it's cryptographically verified
-      // TODO: Add actual ZK verification in future
-      console.log('ZK proof received - claims verified cryptographically');
+      // ZK Proof Verification - cryptographically verify the proof
+      const proofData = proof?.proof || proof;
+      const isValid = await verifyProof(proofData as Record<string, unknown>);
+      
+      if (!isValid) {
+        console.log('[ZK] Proof verification failed');
+        return res.status(400).json(createError(
+          ErrorCode.ZK_VERIFICATION_FAILED,
+          'ZK proof verification failed - proof is invalid'
+        ));
+      }
+      
+      console.log('ZK proof verified successfully');
     }
 
     console.log('About to update session...');
@@ -175,8 +186,13 @@ app.get('/health', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+
+// Load ZK verification key at startup
+loadVerificationKey();
+
 app.listen(PORT, () => {
   console.log(`Zero Auth Relay running on port ${PORT}`);
   console.log(`Using Supabase for session storage`);
   console.log(`Supported credential types: ${SUPPORTED_CREDENTIAL_TYPES.join(', ')}`);
+  console.log(`ZK verification: ${isVerificationEnabled() ? 'enabled' : 'disabled (no key)'}`);
 });
