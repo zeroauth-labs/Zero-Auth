@@ -1,75 +1,94 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-02-18
+**Analysis Date:** 2026-02-21
 
 ## Naming Patterns
 
 **Files:**
-- Expo Router screens, modals, and shared UI components under `zero-auth-wallet/app/` and `zero-auth-wallet/components/` use PascalCase file names (`onboarding.tsx`, `SessionCard.tsx`, `app/(tabs)/index.tsx`) to match React component exports and route names.
-- Utility modules and backend helpers under `zero-auth-wallet/lib/` and `zero-auth-relay/src/lib/` are lowercase (occasionally hyphenated) such as `provider.ts`, `proof.ts`, `wallet.ts`, `network.ts`, highlighting their non-UI roles.
+- Components use PascalCase filenames (e.g., `zero-auth-wallet/components/CustomAlert.tsx`, `zero-auth-wallet/components/SessionCard.tsx`).
+- Hooks use `use-` prefix with kebab-case (e.g., `zero-auth-wallet/hooks/use-theme-color.ts`, `zero-auth-wallet/hooks/use-color-scheme.ts`).
+- App routes use kebab-case and `index.tsx` under Expo Router segments (e.g., `zero-auth-wallet/app/(tabs)/index.tsx`, `zero-auth-wallet/app/add-credential/issuer-select.tsx`).
+- Stores use kebab-case `*-store.ts` (e.g., `zero-auth-wallet/store/auth-store.ts`, `zero-auth-wallet/store/wallet-store.ts`).
+- Utilities in `lib/` use kebab-case (e.g., `zero-auth-wallet/lib/qr-protocol.ts`, `zero-auth-wallet/lib/offline.ts`).
 
 **Functions:**
-- Async helpers and services follow camelCase verbs—`generateProof` (`zero-auth-wallet/lib/proof.ts`), `commitAttribute` (`zero-auth-wallet/lib/hashing.ts`), `verifySessionProof` (`zero-auth-relay/src/services/session.service.ts`), `resolveCallbackUrl` (`zero-auth-relay/src/lib/network.ts`).
-- UI handlers use camelCase verbs with descriptive prefixes (`handleApprove`, `startGeneration` in `zero-auth-wallet/app/approve-request.tsx` and `zero-auth-wallet/app/onboarding.tsx`).
+- React components use `export default function ComponentName()` (e.g., `zero-auth-wallet/components/CustomAlert.tsx`, `zero-auth-wallet/app/(tabs)/index.tsx`).
+- Utilities and hooks use named exports (`export function ...`, `export async function ...`) (e.g., `zero-auth-wallet/lib/utils.ts`, `zero-auth-wallet/hooks/use-theme-color.ts`).
+- Store actions are arrow functions inside Zustand `create` with inline async usage (e.g., `zero-auth-wallet/store/auth-store.ts`, `zero-auth-wallet/store/wallet-store.ts`).
 
 **Variables:**
-- State hooks follow `[value, setValue]` camelCase naming, e.g., `[step, setStep]` (`zero-auth-wallet/app/onboarding.tsx`) and `[refreshing, setRefreshing]` (`zero-auth-wallet/app/(tabs)/index.tsx`).
-- Relay session status strings are uppercase (`'PENDING' | 'COMPLETED' | 'EXPIRED'` in `zero-auth-sdk/src/types.ts`), while wallet-local session metadata uses lowercase (`'active' | 'revoked'` in `zero-auth-wallet/store/auth-store.ts`); maintain each casing per domain.
+- camelCase for locals and state (e.g., `zero-auth-wallet/app/(tabs)/index.tsx`, `zero-auth-wallet/lib/offline.ts`).
+- SCREAMING_SNAKE_CASE for constants (e.g., `zero-auth-wallet/lib/offline.ts`).
 
 **Types:**
-- Interfaces and type aliases use PascalCase with descriptive suffixes (`Session`, `VerificationResult`, `VerifyOptions` in `zero-auth-sdk/src/types.ts`; `AuthState`, `Credential`, `Notification` in `zero-auth-wallet/store/auth-store.ts`).
+- PascalCase interfaces/types with union string literals for enums (e.g., `zero-auth-wallet/store/auth-store.ts`, `zero-auth-wallet/lib/offline.ts`).
 
 ## Code Style
 
 **Formatting:**
-- The wallet project inherits Expo's base formatter (`expo/tsconfig.base`) and strict TypeScript settings defined in `zero-auth-wallet/tsconfig.json`; files consistently prefer `const` for immutable bindings and explicit return types on exports.
+- No dedicated formatter config detected; follow ESLint defaults and local file style in each directory (e.g., 2-space indentation in `zero-auth-wallet/app/_layout.tsx`, 4-space indentation in `zero-auth-wallet/store/auth-store.ts`).
+- Single quotes and semicolons are used consistently (e.g., `zero-auth-wallet/lib/proof.ts`, `zero-auth-wallet/components/ZKEngine.tsx`).
 
 **Linting:**
-- `zero-auth-wallet/package.json` exposes `npm run lint` (`expo lint`), honoring the flattened Expo ESLint config defined in `zero-auth-wallet/eslint.config.js` (excludes `dist/`).
+- ESLint with Expo flat config (`zero-auth-wallet/eslint.config.js`).
+- Lint script uses `expo lint` (`zero-auth-wallet/package.json`).
 
 ## Import Organization
 
 **Order:**
-1. External dependencies (`cors`, `express`, `zod` in `zero-auth-relay/src/index.ts`; `react`, `expo-router` in wallet screens)
-2. Internal modules via aliases/relative paths (`@/store/auth-store`, `@/lib/proof`).
+1. Aliased internal modules from `@/` first (e.g., `zero-auth-wallet/app/(tabs)/index.tsx`, `zero-auth-wallet/store/auth-store.ts`).
+2. External packages (e.g., `zero-auth-wallet/app/(tabs)/index.tsx`, `zero-auth-wallet/components/ZKEngine.tsx`).
+3. Relative imports for same-module files (e.g., `zero-auth-wallet/lib/proof.ts`).
 
 **Path Aliases:**
-- `zero-auth-wallet/tsconfig.json` sets `@/*` to point to the project root, so screens like `zero-auth-wallet/app/approve-request.tsx` import helpers via `@/lib/qr-protocol` and `@/components/ZKEngine`.
+- `@/*` resolves to repo root of the app (`zero-auth-wallet/tsconfig.json`).
 
 ## Error Handling
 
 **Patterns:**
-- Express endpoints wrap schema parsing and service calls in `try/c catch`, log the exception with `pino`, and respond with `res.status(400).json({ error: e.message })` (`zero-auth-relay/src/index.ts`).
-- Service helpers throw descriptive `Error`s to propagate failures (`SessionService.verifySessionProof` and `revokeSession` in `zero-auth-relay/src/services/session.service.ts`), while `verifyProof` logs errors and returns `false` to keep caller logic linear.
-- Wallet UI functions wrap async flows in `try/c catch`, log via `console`, and surface user feedback with `Alert.alert` or local state (see `zero-auth-wallet/app/approve-request.tsx` and `zero-auth-wallet/app/onboarding.tsx`).
+- Throw `Error` for invalid states and missing assets (e.g., `zero-auth-wallet/lib/proof.ts`, `zero-auth-wallet/components/ZKEngine.tsx`).
+- Use `try/catch` with `console.error` or `console.warn`, then rethrow when the UI needs to react (e.g., `zero-auth-wallet/store/wallet-store.ts`, `zero-auth-wallet/app/add-credential/verify.tsx`).
+- Early returns to skip invalid conditions (e.g., `zero-auth-wallet/store/auth-store.ts`).
 
 ## Logging
 
-- Backend logs use `pino` with structured fields for session IDs and proof types (`zero-auth-relay/src/index.ts`, `zero-auth-relay/src/services/session.service.ts`).
-- Frontend/logging-heavy modules (`ZeroAuth.verify` in `zero-auth-sdk/src/index.ts`, `generateProof` in `zero-auth-wallet/lib/proof.ts`, `components/ZKEngine.tsx`) rely on `console.log`/`console.warn` for asset loading, WebView bridge events, and fallback retries.
+**Framework:** console (e.g., `zero-auth-wallet/lib/proof.ts`).
+
+**Patterns:**
+- Use `console.log` for lifecycle tracing and status updates (e.g., `zero-auth-wallet/lib/proof.ts`, `zero-auth-wallet/components/ZKEngine.tsx`).
+- Use `console.warn` for recoverable data issues (e.g., `zero-auth-wallet/lib/proof.ts`, `zero-auth-wallet/app/add-credential/verify.tsx`).
+- Use `console.error` in `catch` blocks and failure paths (e.g., `zero-auth-wallet/store/wallet-store.ts`, `zero-auth-wallet/lib/offline.ts`).
 
 ## Comments
 
-- Longer helpers expose their intent with JSDoc-style headers and numbered steps (`zero-auth-wallet/lib/proof.ts`, `zero-auth-wallet/lib/wallet.ts`).
-- Inline comments explain platform shims and edge cases, e.g., global polyfills in `zero-auth-wallet/app/_layout.tsx` and the bridge injection flow inside `components/ZKEngine.tsx`.
+**When to Comment:**
+- Use brief inline comments for steps, polyfills, and non-obvious flow (e.g., `zero-auth-wallet/app/_layout.tsx`, `zero-auth-wallet/app/add-credential/verify.tsx`).
+- Use short doc comments for utility modules and public functions (e.g., `zero-auth-wallet/lib/storage.ts`, `zero-auth-wallet/lib/offline.ts`).
+
+**JSDoc/TSDoc:**
+- Light usage for exported helpers; avoid heavy docblocks (e.g., `zero-auth-wallet/lib/offline.ts`).
 
 ## Function Design
 
 **Size:**
-- Heavy workflows split into focused helpers (`prepareInputs`, `performProof`, and `generateProof` inside `zero-auth-wallet/lib/proof.ts`; `ZeroAuth.verify` segments session creation, polling, and cancellation) so no single exported function exceeds a screenful without clear substeps.
+- Keep helpers focused and small in `lib/` (e.g., `zero-auth-wallet/lib/utils.ts`, `zero-auth-wallet/lib/storage.ts`).
+- Allow larger UI flows in screen components, organized via step comments and local state (e.g., `zero-auth-wallet/app/add-credential/verify.tsx`).
 
 **Parameters:**
-- Service methods accept typed option objects (`VerifyOptions` for `ZeroAuth.verify`, `{ sessionId, proofPayload }`-style args in `SessionService.verifySessionProof`), keeping callers explicit about all required inputs.
+- Prefer explicit typed parameters and inline `Omit`/union types for actions (e.g., `zero-auth-wallet/store/auth-store.ts`, `zero-auth-wallet/lib/offline.ts`).
 
 **Return Values:**
-- Async APIs return structured result objects with `success` flags and supplementary data (the relay returns `{ success: true }` in `SessionService` and `ZeroAuth.verify` resolves to `VerificationResult` along with an injectable `cancel` hook). When the bridging engine cannot complete, `generateProof` throws to allow UI components to catch and show alerts.
+- Async functions return `Promise<...>` and rethrow on failure when needed (e.g., `zero-auth-wallet/store/wallet-store.ts`, `zero-auth-wallet/lib/proof.ts`).
 
 ## Module Design
 
 **Exports:**
-- The SDK exposes a single `ZeroAuth` class plus re-exported types (`zero-auth-sdk/src/index.ts`), while the wallet divides helpers (`lib/*`), state (`store/*`), and screens (`app/*`) into distinct files that default export their React function or named helpers to keep each module focused.
+- Default exports for screens and components (e.g., `zero-auth-wallet/app/(tabs)/index.tsx`, `zero-auth-wallet/components/CustomAlert.tsx`).
+- Named exports for hooks, utilities, and stores (e.g., `zero-auth-wallet/hooks/use-theme-color.ts`, `zero-auth-wallet/lib/offline.ts`, `zero-auth-wallet/store/auth-store.ts`).
 
 **Barrel Files:**
-- Only the SDK surface uses a barrel (`zero-auth-sdk/src/index.ts`) to re-export `types.ts` alongside the `ZeroAuth` class; other packages prefer direct imports without intermediate barrels.
+- No barrel exports detected; import directly from source files (e.g., `zero-auth-wallet/app/(tabs)/index.tsx`).
+
 ---
-*Convention analysis: 2026-02-18*
+
+*Convention analysis: 2026-02-21*

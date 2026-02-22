@@ -2,25 +2,25 @@
   "mode": "yolo",
   "depth": "standard",
   "parallelization": true,
-  "commit_docs": true,
+  "commit_docs": false,
   "model_profile": "budget",
   "profiles": {
     "active_profile": "budget",
     "presets": {
       "quality": {
-        "planning": "opencode/glm-4.7-free",
-        "execution": "opencode/glm-4.7-free",
-        "verification": "opencode/glm-4.7-free"
+        "planning": "opencode/big-pickle",
+        "execution": "opencode/big-pickle",
+        "verification": "opencode/big-pickle"
       },
       "balanced": {
-        "planning": "opencode/glm-4.7-free",
-        "execution": "opencode/minimax-m2.1-free",
-        "verification": "opencode/glm-4.7-free"
+        "planning": "opencode/big-pickle",
+        "execution": "opencode/big-pickle",
+        "verification": "opencode/big-pickle"
       },
       "budget": {
-        "planning": "opencode/minimax-m2.1-free",
-        "execution": "opencode/grok-code",
-        "verification": "opencode/minimax-m2.1-free"
+        "planning": "opencode/big-pickle",
+        "execution": "opencode/big-pickle",
+        "verification": "opencode/big-pickle"
       }
     },
     "custom_overrides": {

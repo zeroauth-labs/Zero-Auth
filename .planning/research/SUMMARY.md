@@ -1,139 +1,158 @@
 # Project Research Summary
 
 **Project:** ZeroAuth
-**Domain:** Passwordless credential wallet + relay service + TS/JS SDK
-**Researched:** 2026-02-19
+**Domain:** ZK credential wallet + relay + SDK production hardening
+**Researched:** 2026-02-21
 **Confidence:** MEDIUM
 
 ## Executive Summary
 
-ZeroAuth is a passwordless credential wallet with QR-based verification, backed by a relay service and a TS/JS SDK. The research indicates this is best built as an Android-first Expo-managed app with a dev client and native modules, paired with a Fastify relay and a TypeScript SDK, while isolating key management and proof orchestration behind adapters to keep UI and SDK stable.
+ZeroAuth is a production hardening effort for a ZK credential wallet, relay, and SDK system where users prove claims via QR flows. Experts build this as a three-tier system: a static verifier UI backed by an SDK, a hosted relay with a managed database for sessions and audits, and a wallet that generates real proofs using versioned circuits and encrypted keys.
 
-The recommended approach is to first reach Android APK parity with existing Expo Go flows, then integrate Android Keystore-backed keys via a stable key adapter, and finally harden proof/relay/SDK handling for large circuits and payloads. This sequencing aligns with dependency constraints and minimizes risk while preserving backward compatibility for the SDK.
+The recommended approach is to migrate infrastructure first (Render + Supabase + GitHub Pages), then replace mock proofs with real circom/snarkjs flows, and finally harden schema/versioning and wallet key lifecycle. This sequence aligns with dependency ordering (policy storage and schema stability before multi-claim proofs) and keeps integration surfaces stable for SDK consumers.
 
-Primary risks are APK release differences vs Expo Go, Keystore invalidation and recovery, and large-circuit performance/memory issues. These are mitigated by enforcing release-build parity testing early, defining key policies with re-enrollment flows, and introducing circuit registries, asset caching, and size-aware transport before expanding proof complexity.
+Key risks are environment drift (localhost or mixed configs), ZK proof version mismatches, IO schema drift, and wallet reset lockouts. Mitigate these with strict config validation, versioned circuit artifacts with cross-component tests, canonical schemas with golden vectors, and explicit key lifecycle states and recovery paths.
 
 ## Key Findings
 
 ### Recommended Stack
 
-Expo SDK 54 with React Native 0.81 is the most compatible path for Android APK parity while still allowing native module access via EAS dev client. The relay and SDK should remain in modern Node/TypeScript (Node 24 LTS, Fastify 5, TS 5.9) to support large payloads and stable typing. For Android storage and crypto, Keystore-backed `react-native-keychain` plus `react-native-quick-crypto` are required to avoid Expo Go limitations and deprecated crypto shims. See `./.planning/research/STACK.md`.
+Stack research emphasizes a stable LTS Node runtime for the relay, managed hosting for production endpoints, Supabase Postgres for durable sessions and audits, and a real circom/snarkjs toolchain for proof correctness. Supporting libraries focus on schema validation, encrypted key storage, and worker pooling for verification workloads. Detailed stack guidance in `.planning/research/STACK.md`.
 
 **Core technologies:**
-- Expo SDK 54: wallet runtime and APK builds — keeps Expo-managed workflow while enabling native modules.
-- React Native 0.81: mobile UI/runtime — aligned with Expo 54 release cadence and stability.
-- Node.js 24 LTS: relay + tooling runtime — supports modern TS and Fastify 5.
-- Fastify 5: relay HTTP API — performant and schema-driven for large proof payloads.
-- PostgreSQL 18: relay persistence — durable metadata and audit trails.
-- TypeScript 5.9: wallet/relay/SDK typing — stable, accurate SDK type surface.
+- Node.js 24 LTS: relay runtime and ZK tooling — stable LTS with production hosting alignment.
+- Render Web Service: managed relay hosting — removes localhost dependencies and provides SSL/scale.
+- Supabase Postgres 15.x: relay persistence — managed DB with RLS and backups.
+- GitHub Pages: demo site hosting — static hosting with minimal ops.
+- circom 2.2.3 + snarkjs 0.7.6: real proof generation/verification — standard circom toolchain.
 
 ### Expected Features
 
-The MVP is centered on Android APK parity with current flows (credential add/revoke, proof generation, QR scan/display) plus Keystore-backed keys and basic revocation status checks. Differentiators include large-circuit support, selective disclosure UX, and modular verifier SDK packaging. Multi-device sync and advanced policy engines should be deferred to v2+. See `./.planning/research/FEATURES.md`.
+Feature research prioritizes production-grade hosting, real ZK flows, stable schemas, and wallet key protection for v1. Differentiators include multi-claim proofs and transport abstraction, while offline verification and schema registry are v2+. Details in `.planning/research/FEATURES.md`.
 
 **Must have (table stakes):**
-- APK parity for existing flows — users expect the same behavior as Expo Go.
-- Android Keystore-backed keys — baseline trust and security.
-- QR display for proof presentation — completes verifier flow.
-- Revocation status check — required for verifier trust.
+- Hosted relay + managed DB — expected for production traffic stability.
+- Real ZK proof generation + verification — no mock/demo flows.
+- IO schema validation + versioning — consistent wallet/relay/SDK payloads.
+- Wallet key encryption + reset behavior — secure key lifecycle and recovery.
+- SDK modular config + error taxonomy — predictable integration surface.
+- QR short-token flow — QR size constraints in production.
 
 **Should have (competitive):**
-- Large-circuit support in SDK — reduces proof failures for complex credentials.
-- Selective disclosure UX — explicit user consent on data shared.
-- SDK modularity for verifiers — easier partner integration.
+- Multi-claim proofs with selective disclosure — richer proofs and lower data sharing.
+- SDK transport abstraction — swap relay/backend without rewrites.
+- Performance tuning for proofs — reduce scan latency.
 
 **Defer (v2+):**
-- Multi-device encrypted sync — high complexity and threat-model work.
-- Advanced policy engine — depends on usage patterns.
+- Offline verification mode — high complexity, niche deployments.
+- Cross-platform recovery flows — heavy UX and security tradeoffs.
+- Schema registry + tooling — only after ecosystem grows.
 
 ### Architecture Approach
 
-Use a layered wallet/relay/SDK architecture with adapter boundaries: a key management adapter (Keystore + fallback), a circuit registry and proof orchestration module, and size-aware transport between wallet, relay, and SDK. This keeps UI thin, enables APK parity without code churn, and allows scaling to large proof payloads. See `./.planning/research/ARCHITECTURE.md`.
+The architecture centers on a hosted relay with a policy service and Supabase persistence, a wallet that generates proof bundles via a ZK engine bridge, and an SDK used by a static verifier UI. Recommended patterns include a key management adapter, a claim registry for circuit selection, and a proof bundle envelope with schema versioning. See `.planning/research/ARCHITECTURE.md`.
 
 **Major components:**
-1. Wallet UI + ZK Engine bridge — scans QR, prompts user, generates proofs via WebView.
-2. Key Mgmt Adapter — abstracts Keystore and fallback storage, signs DID/ed25519.
-3. Relay API + Session Service — manages sessions, validates proofs, stores state in Redis.
-4. SDK transport/types — standard verifier handshake, polling, and compatibility.
+1. Relay API + policy service — session creation, policy enforcement, proof verification.
+2. Supabase Postgres — persistent sessions, audit logs, rate limits.
+3. Wallet app + ZK engine bridge — proof generation and key management.
+4. SDK + verifier UI — session handshake, polling, and UX integration.
 
 ### Critical Pitfalls
 
-1. **Expo Go assumptions in APK** — require release-build parity testing and native module audits early.
-2. **Keystore key invalidation** — define key policies and re-enrollment/rotation flows, test biometric/OS changes.
-3. **Release signing mismatch** — lock signing early and verify upgrade paths on devices.
-4. **Large circuit OOM or slow startup** — lazy-load circuits, cache assets, and avoid eager loading.
-5. **Proof generation on UI thread** — move proof work off the UI thread and add progress/timeout handling.
+Top risks with mitigations from `.planning/research/PITFALLS.md`:
+
+1. **Relay still assumes localhost** — enforce config validation and CI checks that fail on localhost values.
+2. **ZK proof mismatch across components** — version circuit artifacts and run cross-component proof tests.
+3. **IO format drift breaks multi-claim proofs** — canonical schemas, strict validation, and golden vectors.
+4. **Wallet reset causes lockouts** — explicit key lifecycle, encrypted storage, and recovery flows.
+5. **Supabase migration breaks auth/sessions** — model RLS/indexes and load test with pooling limits.
 
 ## Implications for Roadmap
 
 Based on research, suggested phase structure:
 
-### Phase 1: APK Parity + Release Hardening
-**Rationale:** APK parity is the gating dependency for every user-facing flow; release build differences must be solved first to avoid false confidence from Expo Go.
-**Delivers:** Working Android APK with parity for add/revoke, proof generation, QR scan/display; release signing and shrinker configuration validated.
-**Addresses:** APK parity flows, QR display, basic revocation check.
-**Avoids:** Expo Go assumptions, shrinker/JNI breakage, signing mismatch.
+### Phase 1: Production Hosting + Data Persistence
+**Rationale:** Remove localhost dependencies and establish durable session storage before changing proof logic.
+**Delivers:** Render relay deployment, Supabase schema/migrations, GitHub Pages demo URLs, env validation.
+**Addresses:** Hosted relay + managed DB, QR short-token flow, demo site hosting.
+**Avoids:** Relay still assumes localhost, Supabase auth/session issues, GH Pages routing failures.
 
-### Phase 2: Keystore Integration + Recovery UX
-**Rationale:** Secure key storage is mandatory for production-like APKs and depends on stabilized release builds and adapter boundaries.
-**Delivers:** Keystore-backed key adapter, biometric/PIN gating, re-enrollment and recovery paths, key policy definition.
-**Uses:** `react-native-keychain`, Android Keystore modules.
-**Implements:** Key Mgmt Adapter boundary in wallet architecture.
+### Phase 2: Real ZK Flows + SDK Config Stabilization
+**Rationale:** Proof correctness and SDK compatibility are core to production viability; depends on stable hosting.
+**Delivers:** circom/snarkjs proof generation and relay verification, versioned circuit artifacts, SDK config schema and error taxonomy.
+**Addresses:** Real ZK proof generation + verification, SDK modular config + error taxonomy.
+**Avoids:** ZK proof mismatch across components, fragmented SDK configuration.
 
-### Phase 3: SDK/Proof Scaling + Compatibility
-**Rationale:** Large-circuit support and SDK modularity depend on stable key storage and parity flows; this phase tackles performance, payload size, and protocol compatibility.
-**Delivers:** Circuit registry + asset cache, size-aware transport, relay body limits, SDK modularity, selective disclosure UX.
-**Addresses:** Large-circuit support, SDK modularity, selective disclosure.
-**Avoids:** OOM/slow startup, UI thread blocking, relay/SDK incompatibility.
+### Phase 3: Schema + Wallet Hardening + Multi-Claim Readiness
+**Rationale:** Schema stability and key lifecycle are prerequisites for multi-claim proofs and external integrations.
+**Delivers:** Canonical proof bundle schema with versioning, claim registry, wallet key encryption/reset, golden vectors.
+**Addresses:** IO schema validation + versioning, wallet key encryption + reset, multi-claim proofs groundwork.
+**Avoids:** IO format drift, wallet reset lockouts, unvalidated claim schemas.
+
+### Phase 4: Performance + Abuse Controls
+**Rationale:** Optimize once real proofs and production traffic exist; depends on earlier correctness and schema work.
+**Delivers:** Verification worker pools, rate limiting, observability, proof performance tuning.
+**Addresses:** Rate limiting + abuse controls, observability dashboards, performance tuning.
+**Avoids:** Relay performance collapse, missing indexes/backpressure.
 
 ### Phase Ordering Rationale
 
-- APK parity and release hardening are prerequisites for validating any other work on real devices.
-- Keystore integration requires stable adapters and release builds to safely test invalidation/recovery flows.
-- Large-circuit and SDK refactors require stable proof and key paths to avoid breaking compatibility.
+- Hosting and persistence unlock real end-to-end testing and remove localhost dependencies.
+- Real ZK flows require stable config, versioned artifacts, and a hosted relay to verify.
+- Schema and wallet hardening must precede multi-claim proofs to prevent drift and lockouts.
+- Performance work should follow baseline measurement with real circuits and production endpoints.
 
 ### Research Flags
 
 Phases likely needing deeper research during planning:
-- **Phase 2:** Keystore policies, invalidation, and recovery flows need OS-level validation.
-- **Phase 3:** Large-circuit performance and relay/SDK compatibility require profiling and protocol versioning research.
+- **Phase 2:** Circuit versioning, proof compatibility tests, and verification key distribution.
+- **Phase 3:** Schema standards alignment, multi-claim formats, wallet recovery/security tradeoffs.
+- **Phase 4:** Verification performance benchmarking and queue/worker sizing.
 
 Phases with standard patterns (skip research-phase):
-- **Phase 1:** APK build pipeline, signing, and release config are well-documented patterns.
+- **Phase 1:** Render + Supabase + GitHub Pages deployment patterns are well-established.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | MEDIUM | Based on official docs and release notes; good version alignment. |
-| Features | LOW | Mostly inferred from project context; minimal external validation. |
-| Architecture | MEDIUM | Internal architecture notes plus standard patterns. |
-| Pitfalls | MEDIUM | Experience-based with known Android/ZK failure modes; needs validation. |
+| Stack | MEDIUM | Official sources for versions; validate Supabase Postgres version in project. |
+| Features | LOW | No external sources; based on inference and internal context. |
+| Architecture | MEDIUM | Grounded in internal architecture notes and common patterns. |
+| Pitfalls | MEDIUM | Experience-based; needs validation with production metrics. |
 
 **Overall confidence:** MEDIUM
 
 ### Gaps to Address
 
-- Keystore policy details and recovery UX — validate against Android Keystore docs and device-specific behavior.
-- Proof performance on mid/low-end devices — run profiling to confirm memory/CPU assumptions for large circuits.
-- SDK/relay protocol versioning — define explicit versioning and compatibility windows.
+- **Feature validation vs standards/competitors:** confirm requirements against external docs and market expectations during planning.
+- **Circuit and proof tooling compatibility:** validate with end-to-end tests across wallet, relay, and SDK.
+- **Supabase RLS and pooling constraints:** verify with load tests and explicit policies before production.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- https://docs.expo.dev/versions/latest/ — Expo SDK 54 matrix and Node requirements.
-- https://nodejs.org/en/download — Node.js 24 LTS versioning.
-- https://github.com/fastify/fastify/releases — Fastify 5.7.4 release information.
+- https://nodejs.org/en/about/releases — Node.js 24 LTS
+- https://github.com/iden3/circom/releases — circom 2.2.3
+- https://registry.npmjs.org/snarkjs — snarkjs 0.7.6
+- https://registry.npmjs.org/circomlib — circomlib 2.0.5
+- https://registry.npmjs.org/circomlibjs — circomlibjs 0.1.7
+- https://registry.npmjs.org/@supabase/supabase-js — @supabase/supabase-js 2.97.0
+- https://registry.npmjs.org/zod — zod 4.3.6
+- https://registry.npmjs.org/@noble/ciphers — @noble/ciphers 2.1.1
+- https://registry.npmjs.org/piscina — piscina 5.1.4
+- https://registry.npmjs.org/tsup — tsup 8.5.1
+- https://registry.npmjs.org/supabase — supabase CLI 2.76.12
+- https://supabase.com/docs/guides/database/postgres/which-version-of-postgres — Postgres version check
 
 ### Secondary (MEDIUM confidence)
-- `./.planning/codebase/ARCHITECTURE.md` — internal architecture notes.
-- `./.planning/codebase/INTEGRATIONS.md` — integration audit.
-- https://github.com/oblador/react-native-keychain/releases — Keystore module versioning.
+- `.planning/research/ARCHITECTURE.md` — internal architecture patterns and build order
 
 ### Tertiary (LOW confidence)
-- Project context and milestone notes — feature prioritization and MVP assumptions.
-- Personal experience/known issues — pitfalls and recovery strategies requiring validation.
+- `.planning/research/FEATURES.md` — feature expectations without external validation
+- `.planning/research/PITFALLS.md` — experience-based risk list without external sources
 
 ---
-*Research completed: 2026-02-19*
+*Research completed: 2026-02-21*
 *Ready for roadmap: yes*

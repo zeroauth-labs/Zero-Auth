@@ -1,7 +1,7 @@
 # Stack Research
 
-**Domain:** Passwordless credential wallet + relay service + TS/JS SDK
-**Researched:** 2026-02-19
+**Domain:** ZeroAuth v1.1 production hardening (relay + Supabase + GitHub Pages + real ZK + SDK/wallet hardening)
+**Researched:** 2026-02-21
 **Confidence:** MEDIUM
 
 ## Recommended Stack
@@ -10,88 +10,98 @@
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| Expo SDK | 54.0.0 | Wallet app runtime + APK builds | Expo SDK 54 targets React Native 0.81 and provides a managed-to-bare path (prebuild + dev client) that keeps Expo Go parity while enabling native modules needed for Keystore and crypto. |
-| React Native | 0.81 (via Expo SDK 54) | Mobile UI/runtime | Standard RN baseline for Expo 54; stable in 2025/2026 releases and aligns with Expo-managed upgrade cadence. |
-| Node.js (LTS) | 24.13.1 | Relay service runtime + tooling | Current LTS with security fixes and modern runtime features; aligns with Fastify 5 and modern TypeScript tooling. |
-| Fastify | 5.7.4 | Relay HTTP API | High-performance Node server with strong schema validation and TypeScript support; common for low-latency relay services. |
-| PostgreSQL | 18 (current docs) | Relay persistence | Default choice for transactional relay metadata, audit trails, and credential indexes; stable and well-supported. |
-| TypeScript | 5.9.3 | Wallet, relay, SDK typing | Latest stable compiler as of research date; keeps SDK type surface accurate and backward-compatible builds consistent. |
+| Node.js (LTS) | 24.13.1 | Relay runtime on Render + ZK CLI tooling | Current LTS for security and stability; aligns with production hosting expectations and modern tooling. |
+| Render Web Service | Managed (Node 24.x runtime) | Host relay API without localhost dependencies | Simplifies deploy/SSL/scale for a single relay service; aligns with Node LTS runtime. |
+| Supabase Postgres | PostgreSQL 15.x (verify in project) | Relay persistence + audit/log data | Managed Postgres with RLS, backups, and direct SQL access; removes local DB dependency. |
+| GitHub Pages | Managed (no version) | Host demo site static build | Simple static hosting with built-in HTTPS; minimal ops for demo distribution. |
+| circom | 2.2.3 | Circuit compilation for real ZK flows | Current circom compiler release for real circuit build artifacts. |
+| snarkjs | 0.7.6 | Proof generation/verification (Groth16/Plonk) | Widely used JS toolchain for circom circuits; supports WASM and Node flows. |
 
 ### Supporting Libraries
 
 | Library | Version | Purpose | When to Use |
 |---------|---------|---------|-------------|
-| react-native-keychain | 10.0.0 | Android Keystore-backed secure storage | Store encrypted private material, device-bound secrets, and biometric-protected items. |
-| react-native-quick-crypto | 1.0.13 | Node-compatible crypto in RN | Use for hashing, signing, and ZK-related crypto where WebCrypto is incomplete in RN. |
-| react-native-mmkv | 4.1.2 | High-performance non-secret storage | Cache non-sensitive state, proof metadata, and sync flags; keep secrets in Keystore. |
-| tsup | 8.5.1 | TS/JS SDK bundling | Produces dual CJS/ESM builds with types; good for backward-compatible SDK distribution. |
+| @supabase/supabase-js | 2.97.0 | Relay DB access + service role operations | Use inside relay to read/write Supabase Postgres and manage API tokens. |
+| zod | 4.3.6 | IO schema validation for relay/SDK | Validate proof payloads, credential formats, and multi-claim inputs consistently. |
+| @noble/ciphers | 2.1.1 | Wallet key/DID encryption (AEAD) | Encrypt key material before storage; pair with existing @noble/hashes for KDFs. |
+| circomlib | 2.0.5 | Standard circuit primitives | Use for Poseidon, Pedersen, and other primitives in production circuits. |
+| circomlibjs | 0.1.7 | Witness generation helpers in JS | Use when witness generation happens in JS (wallet or relay). |
+| piscina | 5.1.4 | Worker pool for verification | Use in relay to parallelize proof verification and avoid event-loop stalls. |
 
 ### Development Tools
 
 | Tool | Purpose | Notes |
 |------|---------|-------|
-| EAS Build / EAS CLI | APK builds, native module integration | Required to move from Expo Go to real APKs and include Keystore-native modules. |
-| Android Studio + SDK | Native builds and debugging | Needed for Keystore testing and CI builds for APK parity. |
+| supabase CLI | 2.76.12 | Migrations, local dev, schema export | Pin CLI version to keep migration formats stable across environments. |
+| tsup | 8.5.1 | SDK bundling (CJS/ESM + types) | Ship modular SDK builds with consistent type output. |
 
 ## Installation
 
 ```bash
 # Core
-npm install expo@54 react-native@0.81 fastify@5.7.4
+npm install snarkjs@0.7.6 circomlib@2.0.5 circomlibjs@0.1.7
 
 # Supporting
-npm install react-native-keychain@10.0.0 react-native-quick-crypto@1.0.13 react-native-mmkv@4.1.2
+npm install @supabase/supabase-js@2.97.0 zod@4.3.6 @noble/ciphers@2.1.1 piscina@5.1.4
 
 # Dev dependencies
-npm install -D typescript@5.9.3 tsup@8.5.1
+npm install -D supabase@2.76.12 tsup@8.5.1
 ```
 
 ## Alternatives Considered
 
 | Recommended | Alternative | When to Use Alternative |
 |-------------|-------------|-------------------------|
-| Expo SDK 54 (managed + dev client) | Bare React Native 0.84 | Use bare RN if you need immediate access to the newest RN features outside Expo’s release cadence. |
-| Fastify 5 | NestJS 10+ | Use NestJS if you need opinionated DI and modularity across many services. |
-| react-native-keychain | expo-secure-store | SecureStore is fine for basic secrets but is less flexible for custom Keystore policies and is limited outside Expo. |
+| Supabase Postgres | Neon / Render Postgres | Use if you need Postgres features outside Supabase or want vendor-neutral DB hosting. |
+| circom + snarkjs | Halo2 / Risc0 / gnark | Use if you need recursion, non-circom DSLs, or Rust/Go-native proving. |
+| GitHub Pages | Cloudflare Pages / Netlify | Use if you need edge functions, preview deploys, or larger build limits. |
+| zod | valibot / superstruct | Use if bundle size or schema DSL preferences differ. |
 
 ## What NOT to Use
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| Expo Go for production-like testing | Expo Go cannot load custom native modules, so Keystore and crypto integrations won’t work. | EAS dev client + APK builds. |
-| AsyncStorage for secrets | Not encrypted, not hardware-backed; easy to exfiltrate on rooted devices. | react-native-keychain with Keystore-backed storage. |
-| react-native-crypto (deprecated) | Outdated and incomplete Node crypto compatibility. | react-native-quick-crypto. |
+| Local SQLite/in-memory relay DB | Not production-safe; no durable audit trail or multi-instance support | Supabase Postgres (managed). |
+| Mock/demo ZK proofs in production | Breaks verification trust and format compatibility | Real circom circuits + snarkjs verification keys. |
+| Storing raw private keys in AsyncStorage | Not encrypted or hardware-backed | Encrypt with @noble/ciphers and store via existing secure storage. |
 
 ## Stack Patterns by Variant
 
-**If staying Expo-managed with native modules:**
-- Use Expo SDK 54 + EAS dev client + config plugins
-- Because it keeps Expo Go parity while enabling Keystore-native code in APKs
+**If proofs are generated on-device (wallet-first):**
+- Use snarkjs + WASM in the wallet with local proving keys
+- Because it keeps private inputs on-device and relay only verifies
 
-**If dropping Expo to bare RN:**
-- Use React Native 0.84 + native Android Keystore module + Gradle control
-- Because it removes Expo release cadence constraints and maximizes native control
+**If proofs are generated on the relay (server-first):**
+- Use snarkjs in Node + piscina for parallel verification/proving
+- Because it centralizes compute and simplifies wallet resource constraints
+
+**If demo site is purely static:**
+- Use GitHub Pages for hosting
+- Because it removes server dependencies for the demo site
 
 ## Version Compatibility
 
 | Package A | Compatible With | Notes |
 |-----------|-----------------|-------|
-| expo@54.0.0 | react-native@0.81 | Expo 54 targets RN 0.81 per Expo version matrix. |
-| expo@54.0.0 | node >=20.19 | Expo 54 minimum Node version per Expo docs; Node 24 LTS satisfies this. |
+| circom@2.2.3 | snarkjs@0.7.6 | Standard circom toolchain pairing; verify in CI with circuit build/prove/verify. |
+| circomlib@2.0.5 | circom@2.2.3 | Common pairing for circom 2.x circuits; validate any custom templates. |
+| @supabase/supabase-js@2.97.0 | Supabase Postgres 15.x | Client is API-based; Postgres version is managed by Supabase and should be verified per project. |
 
 ## Sources
 
-- https://docs.expo.dev/versions/latest/ — Expo SDK 54 matrix (RN 0.81, Node minimums)
-- https://github.com/facebook/react-native/releases — React Native 0.84.0 release info
-- https://nodejs.org/en/download — Node.js LTS 24.13.1
-- https://github.com/fastify/fastify/releases — Fastify 5.7.4
-- https://www.postgresql.org/docs/ — PostgreSQL 18 current docs
-- https://github.com/microsoft/TypeScript/releases — TypeScript 5.9.3
-- https://github.com/oblador/react-native-keychain/releases — react-native-keychain 10.0.0
-- https://github.com/margelo/react-native-quick-crypto/releases — react-native-quick-crypto 1.0.13
-- https://github.com/mrousavy/react-native-mmkv/releases — react-native-mmkv 4.1.2
-- https://github.com/egoist/tsup/releases — tsup 8.5.1
+- https://nodejs.org/en/about/releases/ — Node.js 24 LTS version
+- https://github.com/iden3/circom/releases — circom 2.2.3 release
+- https://registry.npmjs.org/snarkjs — snarkjs 0.7.6
+- https://registry.npmjs.org/circomlib — circomlib 2.0.5
+- https://registry.npmjs.org/circomlibjs — circomlibjs 0.1.7
+- https://registry.npmjs.org/@supabase/supabase-js — @supabase/supabase-js 2.97.0
+- https://registry.npmjs.org/zod — zod 4.3.6
+- https://registry.npmjs.org/@noble/ciphers — @noble/ciphers 2.1.1
+- https://registry.npmjs.org/piscina — piscina 5.1.4
+- https://registry.npmjs.org/tsup — tsup 8.5.1
+- https://registry.npmjs.org/supabase — supabase CLI 2.76.12
+- https://supabase.com/docs/guides/database/postgres/which-version-of-postgres — Postgres version check guidance
 
 ---
-*Stack research for: passwordless credential wallet + relay service + TS/JS SDK*
-*Researched: 2026-02-19*
+*Stack research for: ZeroAuth production hardening stack additions*
+*Researched: 2026-02-21*

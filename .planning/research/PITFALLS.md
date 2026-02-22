@@ -1,160 +1,160 @@
 # Pitfalls Research
 
-**Domain:** Mobile wallet app + relay + ZK SDK (Expo to APK, Android Keystore, large circuits)
-**Researched:** 2026-02-19
+**Domain:** Zero-knowledge auth relay + SDK/wallet hardening (demo to production)
+**Researched:** 2026-02-21
 **Confidence:** MEDIUM
 
 ## Critical Pitfalls
 
-### Pitfall 1: Expo Go assumptions in a real APK
+### Pitfall 1: Shipping a relay that still assumes localhost
 
 **What goes wrong:**
-Features work in Expo Go but break in the standalone APK due to missing native modules, different JS runtime (Hermes/JSC), or release build optimizations.
+Hidden hardcoded URLs, permissive CORS rules, or local-only secrets make the hosted relay fail in production or silently fall back to insecure defaults.
 
 **Why it happens:**
-Expo Go bundles many native modules and uses dev settings; the APK only includes what is explicitly configured.
+Demo scaffolding persists (localhost endpoints, mock env vars, debug CORS) and is not fully audited when moving to Render/Supabase/GitHub Pages.
 
 **How to avoid:**
-Audit required native modules before building; align JS engine with production; run nightly APK builds with the exact release config and test on-device.
+Centralize configuration, add explicit environment validation at startup, and maintain a “no-localhost in prod” CI check that fails builds.
 
 **Warning signs:**
-Crashes only in release builds, undefined native modules, or behavior differences between Expo Go and APK.
+Production build includes `localhost` or `.env.example` values; first deploy works only in the developer’s environment.
 
 **Phase to address:**
-Phase 1 (APK build pipeline + release config parity testing).
+Phase 1: Infra migration and environment hardening
 
 ---
 
-### Pitfall 2: Keystore keys invalidated or inaccessible
+### Pitfall 2: ZK proof generation/verification mismatch between SDK and relay
 
 **What goes wrong:**
-Keys become unusable after OS update, biometric changes, or device lock setting changes; wallet breaks or loses access to proofs/signing.
+Proofs that validate locally fail in production due to mismatched circuit versions, verification keys, or inconsistent input packing.
 
 **Why it happens:**
-Android Keystore enforces invalidation rules based on user authentication policies and device state.
+Replacing mock ZK with real flows is done incrementally, and versions drift across SDK, relay, and wallet.
 
 **How to avoid:**
-Define clear key policies (user authentication required or not), implement key rotation and re-enrollment flows, and always test with biometric reset, device lock changes, and OS upgrades.
+Version and publish circuits/verification keys as artifacts, pin SDK/relay to the same version, and include a compatibility test that generates and verifies a proof across components.
 
 **Warning signs:**
-Key retrieval errors like `KeyPermanentlyInvalidatedException`, failures after enabling/disabling biometrics, or unexpected re-auth prompts.
+Intermittent “invalid proof” errors, especially after deploys or SDK updates.
 
 **Phase to address:**
-Phase 2 (Keystore integration + recovery flows).
+Phase 2: Real ZK flows + cross-component compatibility
 
 ---
 
-### Pitfall 3: Release signing and update path mismatch
+### Pitfall 3: IO format drift breaks multi-claim proofs
 
 **What goes wrong:**
-Users cannot update, or data tied to app signature becomes inaccessible after switching signing keys or build flavors.
+Claims are serialized differently across components, leading to verification failures or incorrect claim ordering in multi-claim proofs.
 
 **Why it happens:**
-Debug vs release signing keys differ; changing keystore or applicationId breaks Android’s update continuity.
+Demo formats evolve organically without a formal schema; multiple teams adjust JSON shapes independently.
 
 **How to avoid:**
-Lock release signing early, store signing assets securely, use consistent applicationId, and verify upgrade paths with test devices.
+Define a canonical schema (with versioning), add strict parsing/validation, and create golden test vectors for single- and multi-claim payloads.
 
 **Warning signs:**
-“App not installed” on update, signature mismatch errors, or data loss after reinstall.
+Fixes that add one-off adapters, or bugs that only happen with multi-claim proofs.
 
 **Phase to address:**
-Phase 1 (APK signing and release pipeline).
+Phase 3: IO standards audit and schema enforcement
 
 ---
 
-### Pitfall 4: Large circuit assets cause OOM and slow startup
+### Pitfall 4: Wallet keypair/DID reset behavior causes account lockouts
 
 **What goes wrong:**
-Large proving keys or circuit files cause APK bloat, slow first launch, or out-of-memory crashes when loaded into JS/native memory.
+Users can’t recover after device loss or reset; DIDs become inconsistent, breaking proof generation and relay authorization.
 
 **Why it happens:**
-Circuit artifacts are huge; loading them eagerly or copying on each run spikes memory and IO.
+Demo wallets store keys without robust encryption, rotation, or recovery flows; reset semantics are undefined.
 
 **How to avoid:**
-Stream or mmap large assets, lazy-load by circuit type, cache on disk with versioning, and track memory usage per proof step.
+Define explicit key lifecycle states, encrypt keys with user-verified secrets, and implement a deterministic recovery/reset path tied to DID rotation.
 
 **Warning signs:**
-High cold-start times, APK size growth beyond store limits, or memory-related crashes in release only.
+Users report “invalid DID” or “no keypair” after reinstall; support relies on manual DB edits.
 
 **Phase to address:**
-Phase 3 (SDK refactor for large circuits + asset management).
+Phase 3: Wallet hardening and recovery semantics
 
 ---
 
-### Pitfall 5: Proof generation blocks the UI thread
+### Pitfall 5: Relay database migration to Supabase breaks auth/session handling
 
 **What goes wrong:**
-App freezes or ANRs during proof generation on lower-end devices.
+Tokens or sessions are stored with assumptions about local DB behavior; migrating to Supabase introduces latency, row-level security mismatches, or connection pooling issues.
 
 **Why it happens:**
-ZK proof computation runs on the JS thread or the main UI thread instead of a dedicated worker or native thread.
+Local DB environments don’t enforce the same connection constraints or RLS policies as Supabase.
 
 **How to avoid:**
-Move proof generation to a native thread or background worker, add progress reporting, and set timeouts to keep the UI responsive.
+Model sessions and auth data explicitly for Supabase (RLS, indexes, pooling), and load test with realistic connection limits.
 
 **Warning signs:**
-Frame drops, “App not responding” warnings, or unresponsive UI during proofs.
+Spike in 401s after deploy, or query timeouts under normal load.
 
 **Phase to address:**
-Phase 3 (SDK refactor + performance isolation).
+Phase 1: Database migration and auth hardening
 
 ---
 
-### Pitfall 6: Keystore data backed up or migrated unexpectedly
+### Pitfall 6: SDK configuration becomes fragmented and inconsistent
 
 **What goes wrong:**
-Keys are lost or behave inconsistently after device restore or app migration; auth breaks and users need to re-enroll.
+Apps integrate multiple config flags and get contradictory behavior (e.g., “dev relay” + “prod circuit”).
 
 **Why it happens:**
-Keystore keys are device-bound and not always restorable; backup/restore workflows are inconsistent across vendors.
+Incremental additions to SDK configuration without a single source of truth or validation schema.
 
 **How to avoid:**
-Design for re-enrollment, store only encrypted backups of non-sensitive metadata, and explicitly document recovery behavior.
+Define a strict config schema with defaults, deprecations, and validation errors; provide a single high-level config API.
 
 **Warning signs:**
-Users report failures after device migration or restore; errors only on specific OEM devices.
+SDK consumers rely on copy-pasted examples or hidden env flags to make things work.
 
 **Phase to address:**
-Phase 2 (Keystore integration + recovery/backup behavior).
+Phase 2: SDK modularity and config redesign
 
 ---
 
-### Pitfall 7: Build shrinker removes or breaks ZK/crypto libs
+### Pitfall 7: GitHub Pages hosting breaks auth flows and callback URLs
 
 **What goes wrong:**
-R8/Proguard strips native symbols or obfuscates classes used by JNI, causing runtime crashes.
+Static hosting cannot handle dynamic callback routes or secure cookie flows, breaking login/relay handshake.
 
 **Why it happens:**
-Release builds enable shrinking; native and reflective calls are not referenced directly in Java/Kotlin code.
+Demo site assumptions about server-side routing are carried over to static hosting.
 
 **How to avoid:**
-Add keep rules for JNI/reflection, validate with release builds, and keep a known-good proguard config in version control.
+Use hash-based routing or explicit static routes, move auth callbacks to relay endpoints, and validate CORS/callback URLs in production.
 
 **Warning signs:**
-Crashes only in release builds with `ClassNotFoundException` or native symbol errors.
+Login works locally but fails in deployed demo; 404s on deep links.
 
 **Phase to address:**
-Phase 1 (APK release build hardening).
+Phase 1: Hosting and routing alignment
 
 ---
 
-### Pitfall 8: Relay/SDK protocol changes break app compatibility
+### Pitfall 8: Relay performance collapses under real proof verification load
 
 **What goes wrong:**
-Proofs fail or relay rejects requests after SDK refactor or circuit upgrades.
+Proof verification saturates CPU, causing timeouts and cascading failures.
 
 **Why it happens:**
-Circuit parameters and proof formats are tightly coupled; versioning is ignored or undocumented.
+Demo verification uses mocked or lightweight proofs; production proofs are heavier and not profiled.
 
 **How to avoid:**
-Introduce explicit protocol and circuit versioning, backward compatibility windows, and relay-side validation with clear error codes.
+Benchmark real proof verification, introduce batching or queueing, and separate verification workers from request handling.
 
 **Warning signs:**
-Increased proof verification failures after SDK update; inconsistent behavior across app versions.
+CPU spikes on relay, increased latency even at low QPS.
 
 **Phase to address:**
-Phase 3 (SDK refactor + relay compatibility).
+Phase 4: Performance hardening and capacity planning
 
 ## Technical Debt Patterns
 
@@ -162,11 +162,10 @@ Shortcuts that seem reasonable but create long-term problems.
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Keep Expo Go-only modules for speed | Faster dev loop | APK fails or lacks functionality | Only for prototyping, never in production |
-| Hardcode circuit file paths in JS | Quick integration | Fragile builds, storage/upgrade issues | Never |
-| Skip key rotation | Simpler keystore usage | No recovery path after invalidation | Never |
-| Bundle all circuit artifacts in APK | Offline availability | APK size bloat, slow installs | Only for small circuits in early alpha |
-| Run proofs on JS thread | Easy integration | ANRs and bad UX | Never |
+| Keep mock ZK paths in production | Faster rollout | Hard-to-debug mismatches and security gaps | Never |
+| Allow multiple config sources without validation | Flexibility for early adopters | Drift and inconsistent behavior | Only in internal alpha |
+| Store wallet keys unencrypted “temporarily” | Faster dev | Irreversible security liability | Never |
+| Ignore schema versioning for claims | Quick iteration | Multi-claim incompatibility and brittle parsing | Only before first external integrator |
 
 ## Integration Gotchas
 
@@ -174,9 +173,9 @@ Common mistakes when connecting to external services.
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| Android Keystore | Using default auth settings with no recovery | Define key policies and implement re-enrollment flow |
-| Play/App signing | Changing signing keys midstream | Lock signing keys early and test upgrade path |
-| Native crypto libs | Missing JNI keep rules | Add Proguard/R8 keep rules and test release builds |
+| Render | Assuming long-running background tasks are safe in web dynos | Move proof verification to worker or queue; keep web dynos fast |
+| Supabase | Using default RLS policies without modeling auth flows | Design RLS + indexes for session/relay workloads |
+| GitHub Pages | Relying on server-side routing or cookie callbacks | Use static-safe routing; handle callbacks via relay endpoints |
 
 ## Performance Traps
 
@@ -184,9 +183,9 @@ Patterns that work at small scale but fail as usage grows.
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Eagerly loading full circuit assets | Slow app start, high RAM | Lazy-load, cache, mmap/stream | Breaks on mid/low-end devices |
-| Proof generation on UI thread | UI freezes, ANRs | Move to worker/native threads | Breaks on any device under load |
-| Re-downloading circuit data each run | High bandwidth, long delays | Versioned cache with checksum | Breaks on poor networks |
+| Synchronous proof verification in request path | Timeouts and request queue buildup | Async queue/worker separation | Often at low QPS with heavy proofs |
+| Missing DB indexes for session/claim lookups | Increasing latency and spikes | Add targeted indexes and profile queries | Hundreds to thousands of sessions |
+| Single relay instance with no backpressure | Memory/CPU spikes and crashes | Rate limiting + queue + autoscaling | Sudden traffic bursts |
 
 ## Security Mistakes
 
@@ -194,9 +193,9 @@ Domain-specific security issues beyond general web security.
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Storing secrets outside Keystore | Key extraction on rooted devices | Use Keystore-backed keys + encrypted storage |
-| Logging sensitive material in release | Data leakage | Strip logs in release builds, add redaction |
-| Not binding proofs to app/device context | Replay or misuse of proofs | Add context binding and nonce validation |
+| Reusing demo keys or verification keys in production | Proofs can be forged or replayed | Regenerate and rotate keys per environment |
+| Weak wallet key encryption or no reset policy | Account takeover or permanent lockout | Encrypt keys with user-held secrets; define recovery + rotation |
+| Accepting unvalidated claim schemas | Proofs verifying wrong data | Strict schema validation and canonical encoding |
 
 ## UX Pitfalls
 
@@ -204,18 +203,18 @@ Common user experience mistakes in this domain.
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| No progress/timeout UI for proofs | Users think app is frozen | Show progress with cancel and retry |
-| Hard failures on key invalidation | Users locked out | Provide re-enrollment and recovery messaging |
-| Huge first-time download without warning | Drop-offs on cellular | Preflight size + wifi recommendation |
+| Opaque “invalid proof” errors | Users can’t resolve issues | Provide actionable errors + retry hints |
+| Wallet reset wipes identity without warning | Users lose DID and access | Guided reset with explicit consequences + backup path |
+| SDK requires too many manual steps | Integrators abandon or misconfigure | Provide a single high-level init path with safe defaults |
 
 ## "Looks Done But Isn't" Checklist
 
 Things that appear complete but are missing critical pieces.
 
-- [ ] **APK build:** Works in debug but fails in release — verify release config + Proguard keep rules
-- [ ] **Keystore integration:** Keys work in one session — verify biometric reset, OS update, device restore
-- [ ] **Large circuits:** Proofs work on flagship — verify mid/low-end devices and cold-start times
-- [ ] **SDK refactor:** Proofs pass locally — verify relay compatibility and versioned proofs
+- [ ] **Relay hosting:** Often missing env validation and no-localhost checks — verify production build fails on localhost URLs
+- [ ] **ZK flows:** Often missing end-to-end compatibility tests — verify proof generation/verification across SDK + relay
+- [ ] **Wallet hardening:** Often missing recovery path — verify reset + rebind works without manual DB edits
+- [ ] **IO formats:** Often missing schema versioning — verify versioned claim payloads and golden vectors
 
 ## Recovery Strategies
 
@@ -223,9 +222,9 @@ When pitfalls occur despite prevention, how to recover.
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Keystore invalidation | MEDIUM | Prompt re-enrollment, rotate keys, re-derive non-sensitive state |
-| Release signing mismatch | HIGH | Reissue with correct signing, communicate update path, preserve data migration where possible |
-| Large circuit OOM | MEDIUM | Move assets to on-demand download, implement streaming loader |
+| ZK proof mismatch across components | HIGH | Roll back to last compatible circuit version, re-issue verification keys, re-run compatibility tests |
+| Broken DID after wallet reset | MEDIUM | Provide guided recovery; rotate DID and rebind proofs; invalidate old sessions |
+| Supabase auth/session failures | MEDIUM | Rebuild RLS policies, add indexes, deploy hotfix with session migration |
 
 ## Pitfall-to-Phase Mapping
 
@@ -233,20 +232,17 @@ How roadmap phases should address these pitfalls.
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Expo Go assumptions in APK | Phase 1 (APK pipeline) | Release build smoke test on 3 devices |
-| Keystore invalidation | Phase 2 (Keystore integration) | Biometric reset + OS update test matrix |
-| Signing mismatch | Phase 1 (APK pipeline) | Upgrade test from previous signed build |
-| Large circuit OOM | Phase 3 (SDK refactor) | Memory profiling on mid-tier device |
-| Proof on UI thread | Phase 3 (SDK refactor) | UI responsiveness test during proof |
-| Keystore backup/migration issues | Phase 2 (Keystore integration) | Device restore and migration tests |
-| Shrinker breaks JNI | Phase 1 (APK pipeline) | Release build with minify enabled |
-| Relay/SDK incompatibility | Phase 3 (SDK refactor) | End-to-end proof verification in relay |
+| Relay still assumes localhost | Phase 1 | CI check fails if `localhost` appears in production build |
+| ZK proof mismatch | Phase 2 | Cross-component proof test passes in CI |
+| IO format drift | Phase 3 | Schema validation + golden vectors in tests |
+| Wallet reset lockouts | Phase 3 | Recovery path works in integration test |
+| Supabase auth/session issues | Phase 1 | Load test passes with RLS + pooling |
+| Relay performance collapse | Phase 4 | Sustained verification load meets SLO |
 
 ## Sources
 
-- Personal experience / known issues (MEDIUM confidence, needs validation)
-- Android Keystore docs and Expo build docs should be consulted for implementation specifics
+- Personal experience with ZK and relay production migrations (no external sources queried)
 
 ---
-*Pitfalls research for: ZeroAuth APK + Keystore + ZK SDK refactor*
-*Researched: 2026-02-19*
+*Pitfalls research for: ZeroAuth production hardening*
+*Researched: 2026-02-21*

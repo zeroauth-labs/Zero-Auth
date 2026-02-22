@@ -23,6 +23,7 @@ out/
 .agent/
 .gemini/
 .gsd/
+.planning/
 brain/
 implementation_plan.md
 task.md
