@@ -3,7 +3,7 @@ import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import rateLimit from 'express-rate-limit';
 import { createSession, getSession, updateSession, cleanupExpiredSessions } from './db.js';
-import { validateSessionCreation, validateProofSubmission } from './validation.js';
+import { validateSessionCreation, validateProofSubmission, validateProofStructure } from './validation.js';
 import { ErrorCode, createError, SUPPORTED_CREDENTIAL_TYPES, isValidClaims } from './errors.js';
 import { verifyProof, loadVerificationKey, isVerificationEnabled, computeProofHash } from './zk.js';
 
@@ -147,16 +147,15 @@ app.post('/api/v1/sessions/:id/proof', validateProofSubmission, async (req, res)
     }
 
     if (claimsArray.length > 0) {
-      // For ZK proofs, we can't check attributes - the cryptographic proof itself verifies the claims
-      // The proof contains pi_a, pi_b, pi_c, etc. which prove the claim without revealing data
-      // So we just verify that a proof was submitted (contains proof data)
+      // Proof Schema Validation - validate structure before processing
+      const schemaResult = validateProofStructure(proofData);
       
-      const hasProofData = proofData && (proofData.pi_a || (proofData as Record<string, unknown>).pi_a);
-      
-      if (!hasProofData) {
+      if (!schemaResult.valid) {
+        console.log('[Schema] Proof validation failed:', schemaResult.errors);
         return res.status(400).json(createError(
-          ErrorCode.INVALID_PROOF,
-          'No proof data submitted'
+          ErrorCode.INVALID_PROOF_SCHEMA,
+          'Invalid proof structure',
+          { errors: schemaResult.errors }
         ));
       }
       
