@@ -391,39 +391,80 @@
   // Initialize SDK Button
   function initSDKButton() {
     var container = document.getElementById('sdk-button-container');
-    if (!container) return;
-    if (typeof ZeroAuthButton === 'undefined') {
-      console.log('SDK not loaded yet');
+    if (!container) {
+      console.log('SDK: No container found');
+      return;
+    }
+    
+    console.log('SDK: Checking for ZeroAuthButton...', typeof ZeroAuthButton, typeof window.ZeroAuthButton);
+    
+    // Check if SDK is loaded (try both global and window namespace)
+    var SDK = window.ZeroAuthButton || window.ZeroAuth;
+    if (!SDK) {
+      console.log('SDK: Waiting for SDK to load...');
+      setTimeout(initSDKButton, 500);
+      return;
+    }
+    
+    // Use ZeroAuthButton if available, otherwise wrap ZeroAuth
+    var ButtonConstructor = window.ZeroAuthButton;
+    
+    if (typeof ButtonConstructor !== 'function') {
+      console.log('SDK: ZeroAuthButton not a function, waiting...');
       setTimeout(initSDKButton, 500);
       return;
     }
     
     try {
-      var btn = ZeroAuthButton({
-        text: 'Sign in with SDK Button',
+      console.log('SDK: Creating button with config:', window.ZeroAuthConfig);
+      
+      var btn = ButtonConstructor({
+        text: 'Sign in with ZeroAuth',
         credentialType: 'Age Verification',
         claims: ['birth_year'],
-        relayUrl: 'https://zeroauth-relay.onrender.com',
+        relayUrl: window.ZeroAuthConfig ? window.ZeroAuthConfig.relayUrl : 'https://zeroauth-relay.onrender.com',
+        verifierName: window.ZeroAuthConfig ? window.ZeroAuthConfig.verifierName : 'Demo Website',
         onSuccess: function(result) {
           console.log('SDK Verified!', result);
-          alert('Verification Successful!\n\nSession ID: ' + result.sessionId);
+          alert('Verification Successful!\n\nSession ID: ' + result.sessionId + '\nClaims: ' + JSON.stringify(result.claims));
         },
         onError: function(error) {
           console.error('SDK Error:', error);
-          alert('Error: ' + error.message);
+          alert('Error: ' + (error.message || error));
         }
       });
       
-      if (btn) container.appendChild(btn);
+      if (btn && btn.tagName === 'BUTTON') {
+        container.appendChild(btn);
+        console.log('SDK: Button created successfully');
+      } else {
+        console.error('SDK: Failed to create button element');
+      }
     } catch (e) {
-      console.error('Failed to create SDK button:', e);
+      console.error('SDK: Failed to create SDK button:', e);
     }
   }
   
-  // Wait for DOM and SDK to load
+  // Wait for DOM and SDK to load - start after config is set
+  function waitForSDK() {
+    if (window.ZeroAuthConfig) {
+      initSDKButton();
+    } else {
+      // Config might be set after SDK loads
+      setTimeout(function() {
+        if (window.ZeroAuthConfig) {
+          initSDKButton();
+        } else {
+          // Default config, try anyway
+          initSDKButton();
+        }
+      }, 200);
+    }
+  }
+  
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initSDKButton);
+    document.addEventListener('DOMContentLoaded', waitForSDK);
   } else {
-    setTimeout(initSDKButton, 100);
+    setTimeout(waitForSDK, 100);
   }
 })();
