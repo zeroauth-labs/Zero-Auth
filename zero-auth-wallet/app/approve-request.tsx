@@ -164,7 +164,7 @@ export default function ApproveRequestScreen() {
             const response = await fetch(callbackUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(proof)
+                body: JSON.stringify({ proof: proof })
             });
 
             if (!response.ok) {
@@ -191,9 +191,9 @@ export default function ApproveRequestScreen() {
                     }
                 }
             ]);
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
-            Alert.alert("Error", "Failed to generate proof");
+            Alert.alert("Error", e?.message || "Failed to generate proof");
         } finally {
             setLoading(false);
         }
