@@ -108,13 +108,27 @@ app.post('/api/v1/sessions/:id/proof', validateProofSubmission, async (req, res)
     }
 
     // Validate required_claims against proof
-    const { required_claims } = session;
+    const sessionRequiredClaims = session.required_claims;
     const proof = req.body;
 
-    if (required_claims && Array.isArray(required_claims) && required_claims.length > 0) {
+    // Handle required_claims as either array or JSON string from database
+    let claimsArray: string[] = [];
+    if (sessionRequiredClaims) {
+      if (Array.isArray(sessionRequiredClaims)) {
+        claimsArray = sessionRequiredClaims as string[];
+      } else if (typeof sessionRequiredClaims === 'string') {
+        try {
+          claimsArray = JSON.parse(sessionRequiredClaims);
+        } catch {
+          claimsArray = [];
+        }
+      }
+    }
+
+    if (claimsArray.length > 0) {
       // Check if proof has the required claims
       const proofAttributes = proof?.attributes || {};
-      const missingClaims = required_claims.filter(claim => !proofAttributes.hasOwnProperty(claim));
+      const missingClaims = claimsArray.filter(claim => !proofAttributes.hasOwnProperty(claim));
       
       if (missingClaims.length > 0) {
         return res.status(400).json(createError(

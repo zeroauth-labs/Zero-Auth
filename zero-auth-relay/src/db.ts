@@ -48,16 +48,19 @@ export async function createSession(
   sessionId: string,
   nonce: string,
   verifierName?: string,
-  requiredClaims?: Record<string, unknown>
+  requiredClaims?: unknown
 ): Promise<Session> {
   const client = getSupabaseClient();
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+
+  // Store required_claims as JSON string to avoid Supabase array issues
+  const claimsJson = requiredClaims ? JSON.stringify(requiredClaims) : null;
 
   const session: Session = {
     session_id: sessionId,
     nonce,
     verifier_name: verifierName,
-    required_claims: requiredClaims,
+    required_claims: claimsJson as unknown as Record<string, unknown>,
     status: 'PENDING',
     proof: undefined,
     expires_at: expiresAt,
