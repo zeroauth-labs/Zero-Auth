@@ -1,106 +1,106 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-02-18
+**Analysis Date:** 2026-02-21
 
 ## Test Framework
 
 **Runner:**
-- Not configured; `zero-auth-relay/package.json`, `zero-auth-sdk/package.json`, and `zero-auth-wallet/package.json` expose scripts for dev/build but none named `test` or pointing to a test runner.
+- Not detected; no Jest/Vitest config present in `zero-auth-wallet` and no test runner listed in `zero-auth-wallet/package.json`.
+- Config: Not detected (no `jest.config.*` or `vitest.config.*` referenced by `zero-auth-wallet/package.json`).
 
 **Assertion Library:**
-- Not present—no test dependencies or files reference Jest, Vitest, or similar assertion helpers.
+- Not detected (no test dependencies in `zero-auth-wallet/package.json`).
 
 **Run Commands:**
 ```bash
-# Not available—no `npm run test` in any package.json
-# Not available
-# Not available
+# Not detected (no test scripts in `zero-auth-wallet/package.json`)
 ```
 
 ## Test File Organization
 
 **Location:**
-- All TypeScript files under `zero-auth-relay/src/`, `zero-auth-sdk/src/`, and `zero-auth-wallet/app/`/`components/`/`lib/`/`store/` are production code; there are currently no `*.test.*`, `*.spec.*`, or `__tests__` files co-located with those modules.
+- Not detected; no `*.test.*` or `*.spec.*` files in `zero-auth-wallet`.
 
 **Naming:**
-- Not applicable (no test files to describe).
+- Not detected; no test file naming patterns in `zero-auth-wallet`.
 
 **Structure:**
 ```
-// No test directories or suites exist yet.
+Not detected (no test directories in `zero-auth-wallet`)
 ```
 
 ## Test Structure
 
 **Suite Organization:**
 ```typescript
-// No automated suites are defined at this time.
+Not detected (no test suites in `zero-auth-wallet`)
 ```
 
 **Patterns:**
-- Not defined because no automated tests exist.
-- Manual flows rely on `zero-auth-sdk/examples/basic/src/main.ts` and `zero-auth-wallet/app/approve-request.tsx` to exercise the verification sequence.
+- Not detected; no setup/teardown usage in `zero-auth-wallet`.
 
 ## Mocking
 
 **Framework:**
-- None—no mocking libraries or fixtures are checked into the repo for testing purposes (the `zero-auth-wallet/mocks/empty.js` files support bundling, not tests).
+- Not detected; no test framework configured in `zero-auth-wallet/package.json`.
 
 **Patterns:**
-```
-// No automated mocking patterns.
+```typescript
+Not detected (no mocking patterns in `zero-auth-wallet`)
 ```
 
-**What to Mock / What NOT to Mock:**
-- Not defined because no automation currently imports mocks.
+**Mock Files:**
+- Placeholder module mock exists (`zero-auth-wallet/mocks/empty.js`) but no runner configuration references it.
+
+**What to Mock:**
+- Not detected; no guidelines found in code or config (e.g., `zero-auth-wallet/package.json`).
+
+**What NOT to Mock:**
+- Not detected; no guidelines found in code or config (e.g., `zero-auth-wallet/package.json`).
 
 ## Fixtures and Factories
 
 **Test Data:**
-```
-// No automated fixtures.
+```typescript
+Not detected (no fixtures or factories in `zero-auth-wallet`)
 ```
 
 **Location:**
-- Manual demo data is seeded via `useAuthStore.getState().seedDemoData()` in `zero-auth-wallet/store/auth-store.ts` rather than through automated fixtures.
+- Not detected; no fixture directories in `zero-auth-wallet`.
 
 ## Coverage
 
 **Requirements:**
-- None—no coverage scripts or enforcement exist in any `package.json`.
+- Not detected; no coverage configuration in `zero-auth-wallet/package.json`.
 
 **View Coverage:**
 ```bash
-# No coverage command is configured.
+# Not detected (no coverage scripts in `zero-auth-wallet/package.json`)
 ```
 
 ## Test Types
 
 **Unit Tests:**
-- Not present; there are no unit test suites or files.
+- Not detected; no unit tests found in `zero-auth-wallet`.
 
 **Integration Tests:**
-- Not present.
+- Not detected; no integration tests found in `zero-auth-wallet`.
 
 **E2E Tests:**
-- Not present; the primary validation path is manual through the wallet screens and relay handshake described in `README.md`.
+- Not detected; no E2E framework configuration in `zero-auth-wallet`.
 
 ## Common Patterns
 
 **Async Testing:**
-```
-// No automated async tests to show.
+```typescript
+Not detected (no async test usage in `zero-auth-wallet`)
 ```
 
 **Error Testing:**
+```typescript
+Not detected (no error test patterns in `zero-auth-wallet`)
 ```
-// No automated error tests to show.
-```
-
-**Manual Verification:**
-- The README (`README.md`) outlines how to run `npm run dev:relay`, `npm run dev:sdk`, and `npm run dev:wallet` (via `npm run dev:all`) to manually exercise the full flow.
-- Wallet UI screens such as `zero-auth-wallet/app/(tabs)/index.tsx`, `zero-auth-wallet/app/approve-request.tsx`, and `zero-auth-wallet/app/onboarding.tsx` are the primary touchpoints for end-to-end checks.
-- The SDK demo at `zero-auth-sdk/examples/basic/src/main.ts` provides a curated QR flow used during manual ad-hoc testing.
 
 ---
-*Testing analysis: 2026-02-18*
+
+*Testing analysis: 2026-02-21*

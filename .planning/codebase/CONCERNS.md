@@ -1,97 +1,165 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-02-18
+**Analysis Date:** 2026-02-21
 
 ## Tech Debt
 
-**Wallet `My Zero ID` view is a placeholder.**
-- Issue: `zero-auth-wallet/app/my-qr.tsx` just renders a static QR icon and text with a comment saying the real session handling will be added later.
-- Files: `zero-auth-wallet/app/my-qr.tsx`
-- Impact: There is no way for users to export their DID or expose a live QR to verifiers, so the wallet cannot actually prove its identity in-app.
-- Fix approach: Hook this screen up to the wallet store / relay session data (derive the DID + relay callback, render a real QR, trigger share actions) so the “My Zero ID” flow becomes functional.
+**Revocation registry not implemented:**
+- Issue: Revocation checks return "valid" or "unknown" without a registry or cache.
+- Files: `zero-auth-wallet/lib/revocation.ts`
+- Impact: Revoked credentials appear valid or indeterminate.
+- Fix approach: Integrate a registry client and persist cached results in AsyncStorage.
 
-**SDK basic example hard-codes an ephemeral ngrok relay.**
-- Issue: `zero-auth-sdk/examples/basic/src/main.ts` pins `RELAY_URL` to `https://corrie-overluscious-nonderogatorily.ngrok-free.dev` (line 5).
-- Files: `zero-auth-sdk/examples/basic/src/main.ts`
-- Impact: As soon as that ngrok tunnel expires the example can’t reach the relay, so onboarding materials break and demos fail for new contributors.
-- Fix approach: Parameterize the relay host via an env var or CLI flag and default to a locally running relay (or documented placeholder) instead of baking a throwaway tunnel URL.
+**Relay logic only exists as compiled output:**
+- Issue: Relay service source code is not present; only `dist/index.js` is tracked.
+- Files: `zero-auth-relay/dist/index.js`
+- Impact: Maintenance, debugging, and testing are blocked at source level.
+- Fix approach: Track source (e.g., `src/`) and build artifacts separately.
+
+**Large build artifacts and vendor directories tracked in repo:**
+- Issue: Generated bundles and vendor dependencies are committed.
+- Files: `zero-auth-wallet/dist/metadata.json`, `zero-auth-relay/node_modules/http-errors/index.js`, `node_modules/.package-lock.json`
+- Impact: Repository size growth, slow CI, and noisy diffs.
+- Fix approach: Remove generated outputs from VCS and rebuild in CI.
+
+**Duplicate circuit assets stored in multiple locations:**
+- Issue: Circuit files exist in both assets and circuit folders.
+- Files: `zero-auth-wallet/assets/circuits/student_check_final.zkey`, `zero-auth-wallet/circuits/student_check_final.zkey`
+- Impact: Mismatch risk between build-time and runtime circuit versions.
+- Fix approach: Keep a single canonical circuit directory and reference it consistently.
 
 ## Known Bugs
 
-**`ZeroAuth.verify` never exposes the cancel handler.**
-- Issue: In `zero-auth-sdk/src/index.ts` the cancel callback is assigned to the resolver (`(resolve as any).cancel = cancel`) rather than the promise object that is returned.
-- Files: `zero-auth-sdk/src/index.ts`
-- Impact: Consumers can’t stop polling even when they navigate away, so the verification request continues running until the timeout elapses.
-- Fix approach: Capture the promise in a variable (e.g., `const promise = new Promise(...); promise.cancel = cancel; return promise;`) so the returned object carries the cancel handler.
+**Raw private key access uses wrong key alias:**
+- Symptoms: `getRawPrivateKey` always returns null even when wallet is initialized.
+- Files: `zero-auth-wallet/store/wallet-store.ts`, `zero-auth-wallet/lib/wallet.ts`
+- Trigger: Call `getRawPrivateKey()` after `generateAndStoreIdentity()`.
+- Workaround: Use the same key alias as `PRIVATE_KEY_ALIAS`.
 
-**Secret key backup flow always fails.**
-- Issue: `zero-auth-wallet/app/(tabs)/settings.tsx` calls `useWalletStore.getState().getRawPrivateKey()`, but `getRawPrivateKey` reads `expo-secure-store` key `'privateKey'` while `generateAndStoreIdentity()` stores the secret under `'zero_auth_sk'`.
-- Files: `zero-auth-wallet/app/(tabs)/settings.tsx`, `zero-auth-wallet/lib/wallet.ts`
-- Impact: The “Backup Identity” button shows “Could not retrieve key” every time and the secret can never be exported.
-- Fix approach: Export the shared alias constant from `lib/wallet.ts` or add an accessor that reads from `'zero_auth_sk'` so the backup dialog can actually load the stored private key.
+**Revocation warning does not gate proof generation:**
+- Symptoms: Proof generation proceeds even after user selects cancel in the warning alert.
+- Files: `zero-auth-wallet/app/approve-request.tsx`
+- Trigger: Revocation status is `unknown` and user taps Cancel.
+- Workaround: Block proof flow until user explicitly confirms.
+
+**Queued offline actions can be dropped silently:**
+- Symptoms: Actions are cleared even when handler errors occur.
+- Files: `zero-auth-wallet/lib/offline.ts`
+- Trigger: `processQueuedActions` throws during handling.
+- Workaround: Retry failed actions and only clear successful ones.
 
 ## Security Considerations
 
-**Relay callback URL comes from an attacker-controlled Host header.**
-- Issue: `zero-auth-relay/src/lib/network.ts` uses `req.get('host')` (or `PUBLIC_URL`) to build the callback URL that ends up inside the QR payload, with no allow-listing or validation.
-- Files: `zero-auth-relay/src/lib/network.ts`
-- Impact: A malicious client can forge a Host header (or set `PUBLIC_URL`) and trick the wallet into posting ZK proofs to any domain, exfiltrating sensitive proof data.
-- Fix approach: Pin the callback host in configuration, validate that incoming Host headers/SNI match the trusted relay domain, or cryptographically bind sessions so wallets reject mismatched callbacks.
+**Credential import lacks signature verification:**
+- Risk: Untrusted JSON credentials can be stored as "verified" without issuer validation.
+- Files: `zero-auth-wallet/app/add-credential/import.tsx`
+- Current mitigation: Basic structural checks only.
+- Recommendations: Require issuer signatures and validate them before storing.
 
-**Wallet posts proofs to whatever callback the QR specifies.**
-- Issue: `zero-auth-wallet/app/approve-request.tsx` sends the proof payload to `request.verifier.callback` blindly (lines 64-82), without verifying the domain or TLS status of that URL.
-- Files: `zero-auth-wallet/app/approve-request.tsx`
-- Impact: A crafted QR can point `verifier.callback` at an attacker-controlled HTTP endpoint, enabling theft of proofs and metadata that should remain private.
-- Fix approach: Restrict callbacks to known relay hosts (or require user consent for unknown domains), verify the `verifier.did` before posting, and enforce TLS so proofs always travel over trusted channels.
+**Proof submission to arbitrary callback URL:**
+- Risk: QR payload controls the callback endpoint, enabling data exfiltration.
+- Files: `zero-auth-wallet/app/approve-request.tsx`, `zero-auth-wallet/lib/qr-protocol.ts`
+- Current mitigation: None.
+- Recommendations: Validate callback URLs against an allowlist or a verifier registry.
+
+**QR request parsing bypasses schema validation:**
+- Risk: Malformed or expired requests can be processed.
+- Files: `zero-auth-wallet/app/approve-request.tsx`, `zero-auth-wallet/lib/qr-protocol.ts`
+- Current mitigation: JSON.parse only.
+- Recommendations: Enforce `parseVerificationQR` and reject invalid payloads.
+
+**Relay accepts proofs without auth or verification:**
+- Risk: Anyone can submit or overwrite proofs for any session ID.
+- Files: `zero-auth-relay/dist/index.js`
+- Current mitigation: In-memory session store only.
+- Recommendations: Add proof verification, auth, and request validation.
+
+**Environment file committed to repo:**
+- Risk: Configuration values are tracked in VCS.
+- Files: `zero-auth-relay/.env`
+- Current mitigation: None.
+- Recommendations: Remove `.env` from VCS and document required env vars.
 
 ## Performance Bottlenecks
 
-**Injecting SnarkJS/Poseidon via large script strings slows startup.**
-- Issue: `zero-auth-wallet/components/ZKEngine.tsx` downloads the entire `snarkjs` and `poseidon` bundles, reads them as strings, and injects them through multiple `webView.injectJavaScript` calls every time the WebView becomes ready.
+**Large circuit assets loaded and base64 encoded in memory:**
+- Problem: `.wasm` and `.zkey` files are read into base64 strings per credential type.
+- Files: `zero-auth-wallet/lib/proof.ts`
+- Cause: Full file read into memory with per-session cache only.
+- Improvement path: Stream or persist assets and avoid repeated encoding.
+
+**ZK engine injects large JS bundles into WebView on load:**
+- Problem: Startup latency and memory spikes during injection.
 - Files: `zero-auth-wallet/components/ZKEngine.tsx`
-- Impact: Cold start has to parse megabytes of JS via string injection, causing jank on low-end devices and repeated work whenever the component re-initializes.
-- Fix approach: Ship a dedicated HTML/JS bundle shipped with the app (or hosted file) and point the WebView to it so the heavy scripts load only once instead of re-injecting via template literals.
+- Cause: Inline injection of entire `snarkjs` and `poseidon` bundles.
+- Improvement path: Pre-bundle in WebView or load from local files with caching.
+
+**Offline queue polling runs every 5 seconds:**
+- Problem: Battery and CPU usage even when idle.
+- Files: `zero-auth-wallet/lib/offline.ts`
+- Cause: `setInterval`-based queue count updates.
+- Improvement path: Update counts on queue mutations or app state changes.
 
 ## Fragile Areas
 
-**Manual script injection and polyfills in the ZK bridge are brittle.**
-- Issue: The same `ZKEngine` component builds the bridge by concatenating inline strings, polyfilling globals, and manually reposting log messages (lines 23-234) rather than using a static script file.
+**WebView bridge depends on custom injection timing:**
 - Files: `zero-auth-wallet/components/ZKEngine.tsx`
-- Impact: Any change to SnarkJS, Poseidon, or the bridge logic requires editing fragile template literals, and a single missing quote can leave the WebView dead with no compile-time checks.
-- Fix approach: Move the injected logic into a dedicated static JS file or WebView-based HTML page and load it via `source`/URI, which gives syntax checking and keeps the native code from reassembling huge strings.
+- Why fragile: Execution fails when assets or WebView load ordering changes.
+- Safe modification: Keep injection order and status transitions consistent.
+- Test coverage: No tests detected for bridge behavior.
+
+**Credential type matching relies on exact string values:**
+- Files: `zero-auth-wallet/lib/proof.ts`, `zero-auth-wallet/store/auth-store.ts`
+- Why fragile: String mismatches break proof generation.
+- Safe modification: Centralize credential type constants and use enums.
+- Test coverage: No tests detected for type mapping.
+
+**Proof flow assumes request is valid and present:**
+- Files: `zero-auth-wallet/app/approve-request.tsx`
+- Why fragile: `request!` is used without schema guard or expiry checks.
+- Safe modification: Validate before use and handle nulls explicitly.
+- Test coverage: No tests detected for approval flow.
 
 ## Scaling Limits
 
-**Not detected.**
-- Issue: Not detected
-- Files: Not detected
-- Impact: Not detected
-- Fix approach: Not detected
+**Relay session storage is in-memory with per-session timeouts:**
+- Current capacity: Single process, memory-bound.
+- Limit: Sessions are lost on restart and do not scale horizontally.
+- Scaling path: Use Redis or database-backed sessions with TTL.
 
 ## Dependencies at Risk
 
-**Not detected.**
-- Issue: Not detected
-- Files: Not detected
-- Impact: Not detected
-- Fix approach: Not detected
+**Legacy FileSystem API usage:**
+- Risk: Deprecation or behavioral changes in Expo file APIs.
+- Impact: Circuit asset loading failures.
+- Files: `zero-auth-wallet/lib/proof.ts`, `zero-auth-wallet/components/ZKEngine.tsx`
+- Migration plan: Migrate to `expo-file-system` non-legacy APIs.
 
 ## Missing Critical Features
 
-**Not detected.**
-- Issue: Not detected
-- Files: Not detected
-- Impact: Not detected
-- Fix approach: Not detected
+**Revocation registry integration:**
+- Problem: No authoritative revocation check.
+- Blocks: Reliable credential validity enforcement.
+- Files: `zero-auth-wallet/lib/revocation.ts`
+
+**Proof verification at relay:**
+- Problem: Proofs are stored without cryptographic verification.
+- Blocks: Trust in the relay as a verification endpoint.
+- Files: `zero-auth-relay/dist/index.js`
+
+**Issuer signature verification on credentials:**
+- Problem: Credentials are accepted without issuer proof.
+- Blocks: Trust model for imported or demo credentials.
+- Files: `zero-auth-wallet/app/add-credential/import.tsx`, `zero-auth-wallet/app/add-credential/verify.tsx`
 
 ## Test Coverage Gaps
 
-**No automated tests or coverage are configured.**
-- Issue: None of the manifest files (`package.json`, `zero-auth-relay/package.json`, `zero-auth-sdk/package.json`, `zero-auth-wallet/package.json`) expose any `test` script or reference a test runner/framework.
-- Files: `package.json`, `zero-auth-relay/package.json`, `zero-auth-sdk/package.json`, `zero-auth-wallet/package.json`
-- Impact: Every change is deployed without automated verification, which makes regressions in relay, wallet, or SDK flows easy to miss.
-- Fix approach: Add at least a smoke test suite (e.g., Vitest/Jest) per package and wire up a root `test` command or CI job that runs them before release.
+**No automated tests detected:**
+- What's not tested: Wallet state, proof generation, QR parsing, relay endpoints.
+- Files: `zero-auth-wallet/lib/proof.ts`, `zero-auth-wallet/lib/qr-protocol.ts`, `zero-auth-wallet/store/auth-store.ts`, `zero-auth-relay/dist/index.js`
+- Risk: Regressions in core flows go unnoticed.
+- Priority: High
 
 ---
 
-*Concerns audit: 2026-02-18*
+*Concerns audit: 2026-02-21*

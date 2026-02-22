@@ -1,16 +1,17 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "model": "big-pickle",
   "agent": {
-    "gsd-planner": { "model": "opencode/minimax-m2.1-free" },
-    "gsd-plan-checker": { "model": "opencode/minimax-m2.1-free" },
-    "gsd-phase-researcher": { "model": "opencode/minimax-m2.1-free" },
-    "gsd-roadmapper": { "model": "opencode/minimax-m2.1-free" },
-    "gsd-project-researcher": { "model": "opencode/minimax-m2.1-free" },
-    "gsd-research-synthesizer": { "model": "opencode/minimax-m2.1-free" },
-    "gsd-codebase-mapper": { "model": "opencode/minimax-m2.1-free" },
-    "gsd-executor": { "model": "opencode/grok-code" },
-    "gsd-debugger": { "model": "opencode/grok-code" },
-    "gsd-verifier": { "model": "opencode/minimax-m2.1-free" },
-    "gsd-integration-checker": { "model": "opencode/minimax-m2.1-free" }
+    "gsd-planner": { "model": "big-pickle" },
+    "gsd-plan-checker": { "model": "big-pickle" },
+    "gsd-phase-researcher": { "model": "big-pickle" },
+    "gsd-roadmapper": { "model": "big-pickle" },
+    "gsd-project-researcher": { "model": "big-pickle" },
+    "gsd-research-synthesizer": { "model": "big-pickle" },
+    "gsd-codebase-mapper": { "model": "big-pickle" },
+    "gsd-executor": { "model": "big-pickle" },
+    "gsd-debugger": { "model": "big-pickle" },
+    "gsd-verifier": { "model": "big-pickle" },
+    "gsd-integration-checker": { "model": "big-pickle" }
   }
 }

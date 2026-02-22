@@ -97,7 +97,12 @@ app.get('/api/v1/sessions/:id', async (req, res) => {
 // Submit proof for a session
 app.post('/api/v1/sessions/:id/proof', validateProofSubmission, async (req, res) => {
   try {
+    console.log('Proof submission - session_id:', req.params.id);
+    console.log('Proof submission - body:', JSON.stringify(req.body).substring(0, 200));
+    
     const session = await getSession(req.params.id);
+    console.log('Proof submission - session found:', !!session);
+    
     if (!session) {
       return res.status(404).json(createError(ErrorCode.SESSION_NOT_FOUND, 'Session not found or expired'));
     }
@@ -139,15 +144,18 @@ app.post('/api/v1/sessions/:id/proof', validateProofSubmission, async (req, res)
       }
     }
 
+    console.log('About to update session...');
     await updateSession(req.params.id, {
       status: 'COMPLETED',
       proof: proof,
     });
+    console.log('Session updated successfully');
 
     res.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating session with proof:', error);
-    res.status(500).json(createError(ErrorCode.DATABASE_ERROR, 'Failed to submit proof'));
+    console.error('Error stack:', error.stack);
+    res.status(500).json(createError(ErrorCode.DATABASE_ERROR, 'Failed to submit proof: ' + error.message));
   }
 });
 

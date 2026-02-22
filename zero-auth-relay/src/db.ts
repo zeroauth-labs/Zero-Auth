@@ -129,19 +129,31 @@ export async function updateSession(
 ): Promise<Session | null> {
   const client = getSupabaseClient();
 
-  const { data, error } = await client
-    .from('sessions')
-    .update(updates)
-    .eq('session_id', sessionId)
-    .select()
-    .single();
+  try {
+    const { data, error } = await client
+      .from('sessions')
+      .update(updates)
+      .eq('session_id', sessionId)
+      .select()
+      .single();
 
-  if (error) {
-    console.error('Error updating session:', error);
-    throw new Error(`Failed to update session: ${error.message}`);
+    if (error) {
+      // Check for abort error (timeout)
+      if (error.message?.includes('abort') || error.message?.includes('Aborted')) {
+        console.error('Database query timed out:', error);
+        throw new Error('Database query timed out');
+      }
+      console.error('Error updating session:', error);
+      throw new Error(`Failed to update session: ${error.message}`);
+    }
+
+    return data;
+  } catch (err: any) {
+    if (err.message?.includes('abort') || err.message?.includes('Aborted') || err.message?.includes('timed out')) {
+      throw err;
+    }
+    throw err;
   }
-
-  return data;
 }
 
 export async function cleanupExpiredSessions(): Promise<number> {
