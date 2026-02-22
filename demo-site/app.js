@@ -391,26 +391,34 @@
   // Initialize SDK Button
   function initSDKButton() {
     const container = document.getElementById('sdk-button-container');
-    if (!container || typeof ZeroAuthButton === 'undefined') return;
+    if (!container) return;
+    if (typeof ZeroAuthButton === 'undefined') {
+      console.log('SDK not loaded yet, skipping button init');
+      return;
+    }
     
     // Create SDK button element
-    const btn = ZeroAuthButton({
-      text: 'Sign in with SDK Button',
-      credentialType: 'Age Verification',
-      claims: ['birth_year'],
-      onSuccess: (result) => {
-        console.log('SDK Verified!', result);
-        alert('Verification Successful!\n\nSession ID: ' + result.sessionId);
-      },
-      onError: (error) => {
-        console.error('SDK Error:', error);
-        alert('Error: ' + error.message);
-      }
-    });
-    
-    container.appendChild(btn);
+    try {
+      const btn = ZeroAuthButton({
+        text: 'Sign in with SDK Button',
+        credentialType: 'Age Verification',
+        claims: ['birth_year'],
+        onSuccess: (result) => {
+          console.log('SDK Verified!', result);
+          alert('Verification Successful!\n\nSession ID: ' + result.sessionId);
+        },
+        onError: (error) => {
+          console.error('SDK Error:', error);
+          alert('Error: ' + error.message);
+        }
+      });
+      
+      if (btn) container.appendChild(btn);
+    } catch (e) {
+      console.error('Failed to create SDK button:', e);
+    }
   }
   
-  // Try to init SDK button after a short delay
-  setTimeout(initSDKButton, 500);
+  // Try to init SDK button after DOM and scripts load
+  setTimeout(initSDKButton, 1000);
 })();
