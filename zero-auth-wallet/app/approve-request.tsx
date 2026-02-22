@@ -149,6 +149,10 @@ export default function ApproveRequestScreen() {
 
             console.log("Generating proof for:", matchingCredential.id);
             const proof = await generateProof(zkEngine, request!, matchingCredential, salt);
+            
+            console.log("Proof generated, type:", proof ? typeof proof : 'undefined');
+            console.log("Proof keys:", proof ? Object.keys(proof) : 'none');
+            console.log("Proof credential_type:", proof?.credential_type);
 
             // 3. Post Proof to Relay
             let callbackUrl = request!.verifier.callback;
@@ -161,14 +165,20 @@ export default function ApproveRequestScreen() {
             // }
 
             console.log("Submitting proof to:", callbackUrl);
+            console.log("Proof payload:", JSON.stringify({ proof: proof }).substring(0, 200));
+            
             const response = await fetch(callbackUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ proof: proof })
             });
 
+            console.log("Response status:", response.status);
+            
             if (!response.ok) {
-                throw new Error(`Failed to submit proof: ${response.statusText}`);
+                const errorText = await response.text();
+                console.error("Submit error:", errorText);
+                throw new Error(`Failed to submit proof: ${response.status} - ${errorText.substring(0, 100)}`);
             }
 
             console.log("✅ Proof Submitted Successfully");
