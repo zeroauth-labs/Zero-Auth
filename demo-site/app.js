@@ -390,24 +390,25 @@
   
   // Initialize SDK Button
   function initSDKButton() {
-    const container = document.getElementById('sdk-button-container');
+    var container = document.getElementById('sdk-button-container');
     if (!container) return;
     if (typeof ZeroAuthButton === 'undefined') {
-      console.log('SDK not loaded yet, skipping button init');
+      console.log('SDK not loaded yet');
+      setTimeout(initSDKButton, 500);
       return;
     }
     
-    // Create SDK button element
     try {
-      const btn = ZeroAuthButton({
+      var btn = ZeroAuthButton({
         text: 'Sign in with SDK Button',
         credentialType: 'Age Verification',
         claims: ['birth_year'],
-        onSuccess: (result) => {
+        relayUrl: 'https://zeroauth-relay.onrender.com',
+        onSuccess: function(result) {
           console.log('SDK Verified!', result);
           alert('Verification Successful!\n\nSession ID: ' + result.sessionId);
         },
-        onError: (error) => {
+        onError: function(error) {
           console.error('SDK Error:', error);
           alert('Error: ' + error.message);
         }
@@ -419,6 +420,10 @@
     }
   }
   
-  // Try to init SDK button after DOM and scripts load
-  setTimeout(initSDKButton, 1000);
+  // Wait for DOM and SDK to load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSDKButton);
+  } else {
+    setTimeout(initSDKButton, 100);
+  }
 })();
