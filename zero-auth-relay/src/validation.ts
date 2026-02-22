@@ -64,8 +64,8 @@ export function validateProofSubmission(req: Request, res: Response, next: NextF
     });
   }
   
-  // Check proof size (max 1MB)
-  const proofSize = JSON.stringify(proof).length;
+  // Check proof size (max 1MB) - handle undefined proof
+  const proofSize = JSON.stringify(proof || {}).length;
   const MAX_PROOF_SIZE = 1024 * 1024; // 1MB
   
   if (proofSize > MAX_PROOF_SIZE) {
