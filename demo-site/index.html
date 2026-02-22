@@ -7,8 +7,6 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- Production environment configuration -->
-  <script>window.ENV = { RELAY_URL: 'https://zeroauth-relay.onrender.com' };</script>
   <div class="container">
     <header class="header">
       <h1>ZeroAuth Demo</h1>
@@ -16,19 +14,24 @@
     </header>
 
     <main>
-      <!-- Settings Section (ABOVE FOLD) -->
-      <section id="settings-section" class="card">
-        <h2>Settings</h2>
+      <!-- SDK Section -->
+      <section class="card">
+        <h2>SDK Integration</h2>
+        <p style="color: #888; margin-bottom: 16px; font-size: 14px;">
+          Using @zero-auth/sdk with built-in button and modal
+        </p>
+        <div id="sdk-button-container"></div>
+      </section>
+
+      <!-- Custom Flow Section -->
+      <section class="card">
+        <h2>Custom Flow</h2>
+        
+        <!-- Settings (ABOVE FOLD) -->
         <form id="settings-form">
           <div class="form-group">
             <label for="verifier-name">Verifier Name</label>
-            <input 
-              type="text" 
-              id="verifier-name" 
-              name="verifier_name" 
-              value="Demo Verifier"
-              placeholder="Enter verifier name"
-            >
+            <input type="text" id="verifier-name" name="verifier_name" value="Demo Verifier">
           </div>
 
           <div class="form-group">
@@ -42,60 +45,33 @@
 
           <div class="form-group" id="claims-group">
             <label>Requested Claims</label>
-            <div id="claims-checkboxes" class="checkbox-group">
-              <!-- Dynamically populated based on credential type -->
-            </div>
+            <div id="claims-checkboxes" class="checkbox-group"></div>
           </div>
 
           <div class="form-group">
-            <label for="timeout">Timeout: <span id="timeout-value">60</span> seconds</label>
-            <input 
-              type="range" 
-              id="timeout" 
-              name="timeout" 
-              min="30" 
-              max="300" 
-              value="60" 
-              step="30"
-            >
-            <div class="range-labels">
-              <span>30s</span>
-              <span>5m</span>
-            </div>
+            <label>Timeout: <span id="timeout-value">60</span> seconds</label>
+            <input type="range" id="timeout" name="timeout" min="30" max="300" value="60" step="30">
           </div>
 
           <div class="form-group">
-            <button type="button" id="toggle-advanced" class="btn-link">
-              Show Advanced Options ▾
-            </button>
+            <button type="button" id="toggle-advanced" class="btn-link">Show Advanced ▾</button>
           </div>
 
           <div id="advanced-options" class="advanced-options hidden">
             <div class="form-group">
               <label for="relay-url">Relay URL</label>
-              <input 
-                type="url" 
-                id="relay-url" 
-                name="relay_url" 
-                value="https://zeroauth-relay.onrender.com"
-                placeholder="https://your-relay-url.com"
-              >
+              <input type="url" id="relay-url" name="relay_url" value="https://zeroauth-relay.onrender.com">
             </div>
           </div>
         </form>
-      </section>
 
-      <!-- Sign In Section (BELOW settings, ABOVE fold) -->
-      <section id="signin-section" class="card">
         <button type="button" id="signin-btn" class="btn-primary btn-large">
           Sign in using ZeroAuth
         </button>
-        <p class="loading-text hidden" id="loading-text">
-          Generating QR code...
-        </p>
+        <p class="loading-text hidden" id="loading-text">Generating QR code...</p>
       </section>
 
-      <!-- QR Display Area -->
+      <!-- QR Display -->
       <section id="qr-section" class="card hidden">
         <div class="qr-container">
           <canvas id="qr-canvas"></canvas>
@@ -105,26 +81,35 @@
           <p><strong>Claims:</strong> <span id="session-claims">-</span></p>
           <p><strong>Time remaining:</strong> <span id="countdown">60</span>s</p>
         </div>
-        <button type="button" id="cancel-btn" class="btn-secondary">
-          Cancel
-        </button>
+        <button type="button" id="cancel-btn" class="btn-secondary">Cancel</button>
       </section>
 
-      <!-- Verification Result Area -->
+      <!-- Result -->
       <section id="result-section" class="card hidden">
         <div id="result-content"></div>
-        <button type="button" id="try-again-btn" class="btn-primary">
-          Try Again
-        </button>
+        <button type="button" id="try-again-btn" class="btn-primary">Try Again</button>
       </section>
     </main>
 
     <footer class="footer">
-      <p>Powered by <a href="https://github.com/zero-auth/zero-auth" target="_blank" rel="noopener">ZeroAuth</a></p>
+      <p>Powered by <a href="https://github.com/zeroauth-labs/Zero-Auth" target="_blank">ZeroAuth</a></p>
     </footer>
   </div>
 
+  <!-- ZeroAuth SDK -->
+  <script src="https://unpkg.com/@zero-auth/sdk@1.0.0/dist/zero-auth-sdk.umd.js"></script>
+  
+  <!-- QR Code library -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  
+  <script>
+    // Configure SDK
+    window.ZeroAuthConfig = {
+      relayUrl: 'https://zeroauth-relay.onrender.com',
+      verifierName: 'Demo Website'
+    };
+  </script>
+  
   <script src="app.js"></script>
 </body>
 </html>

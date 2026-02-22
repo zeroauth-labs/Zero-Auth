@@ -1,133 +1,91 @@
 # ZeroAuth
 
-A Zero-Knowledge Proof (ZKP) based authentication system for private credential verification.
+Zero-Knowledge Proof authentication system for private credential verification.
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
 │   Wallet    │────▶│   Relay     │◀────│    SDK     │
 │  (Mobile)  │     │  (Server)   │     │   (Web)    │
 └─────────────┘     └─────────────┘     └─────────────┘
-     │                     │                     │
- Generates ZK        Session &           Request
-   Proofs           Verification         Verification
 ```
 
-- **Wallet** (Mobile App): React Native/Expo app that stores credentials and generates ZK proofs on-device
-- **Relay** (Server): Node.js/Express service that manages sessions and verifies proofs
-- **SDK** (Web): TypeScript library for websites to request verifications
+- **Wallet**: React Native/Expo mobile app
+- **Relay**: Node.js/Express server
+- **SDK**: Web integration library
 
-## 🚀 Quick Start
+## Quick Start
 
-### Production URLs (Already Deployed)
+### Production
 
-- **Relay**: https://zeroauth-relay.onrender.com
-- **Demo Site**: https://zeroauth-labs.github.io/Zero-Auth/
+- Relay: https://zeroauth-relay.onrender.com
+- Demo: https://zeroauth-labs.github.io/Zero-Auth/
 
-### Running Locally
-
-#### 1. Wallet (Mobile App)
+### Local Development
 
 ```bash
+# Wallet
 cd zero-auth-wallet
 npm install
+cd android && ./gradlew assembleDebug
 
-# Build APK (requires Java 17)
-cd android
-./gradlew assembleDebug
-
-# Install on phone
-adb install app/build/outputs/apk/debug/app-debug.apk
-```
-
-#### 2. Relay (Server)
-
-```bash
+# Relay
 cd zero-auth-relay
 npm install
-
-# Create .env file
-cp .env.example .env
-# Edit .env with your Supabase credentials
-
-# Run
+# Create .env with SUPABASE_URL and SUPABASE_ANON_KEY
 npm run dev
 ```
 
-#### 3. SDK
+## SDK Usage
+
+### React
 
 ```bash
-cd zero-auth-sdk
-npm install
-npm run build
-
-# Use in your project
-import { ZeroAuth } from '@zero-auth/sdk';
+npm install @zero-auth/sdk
 ```
 
-## 📱 Usage
+```jsx
+import { ZeroAuthButton } from '@zero-auth/sdk';
 
-### Demo Site Flow
+<ZeroAuthButton 
+  credentialType="Age Verification"
+  claims={['birth_year']}
+  onSuccess={(result) => console.log(result)}
+/>
 
-1. Open https://zeroauth-labs.github.io/Zero-Auth/
-2. Select credential type (Age Verification, Student ID, Trial)
-3. Click "Sign in using ZeroAuth"
-4. Scan QR with wallet app
-5. Approve the request
-6. Website shows verification result
-
-### SDK Integration
-
-```javascript
-import { ZeroAuth } from '@zero-auth/sdk';
-
-const zeroAuth = new ZeroAuth({
-  relayUrl: 'https://zeroauth-relay.onrender.com'
-});
-
-// Request verification
-const result = await zeroAuth.verify({
-  credentialType: 'Age Verification',
-  claims: ['birth_year', 'country']
-});
-
-console.log(result);
-// { success: true, claims: {...} }
 ```
 
-## 🔧 Environment Variables
+### CDN / Vanilla JS
+
+```html
+<script src="https://unpkg.com/@zero-auth/sdk/dist/zero-auth-sdk.umd.js"></script>
+<script>
+  window.ZeroAuthConfig = {
+    relayUrl: 'https://zeroauth-relay.onrender.com'
+  };
+</script>
+```
+
+## Environment Variables
 
 ### Relay (.env)
 
-```env
-# Supabase (get from https://supabase.com)
+```
 SUPABASE_URL=your_supabase_url
 SUPABASE_ANON_KEY=your_anon_key
-
-# Public URL (your deployment URL)
 PUBLIC_URL=http://localhost:3000
-
-NODE_ENV=development
-PORT=3000
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
-├── zero-auth-wallet/     # Mobile wallet app (React Native/Expo)
-├── zero-auth-relay/     # Relay server (Node.js/Express)
-├── zero-auth-sdk/       # Web SDK (TypeScript)
-└── demo-site/           # Demo website
+├── zero-auth-wallet/   # Mobile app
+├── zero-auth-relay/    # Server
+├── zero-auth-sdk/      # Web SDK
+└── demo-site/          # Demo website
 ```
 
-## 🔒 Security Notes
-
-- ZK proofs never reveal raw data - only prove statements
-- Credentials stored encrypted on device
-- Session timeouts prevent replay attacks
-- No API keys stored in frontend code
-
-## 📄 License
+## License
 
 MIT
