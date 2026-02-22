@@ -5,7 +5,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Initialize Zero-Auth SDK
     const zeroAuth = new ZeroAuth.ZeroAuth({
-        relayUrl: 'https://zeroauth-relay.onrender.com/', // Default relay URL
+        relayUrl: 'https://zeroauth-relay.onrender.com', // Default relay URL
         verifierName: 'Z-Date Dating',
         credentialType: 'Age Verification',
         claims: ['birth_year']
