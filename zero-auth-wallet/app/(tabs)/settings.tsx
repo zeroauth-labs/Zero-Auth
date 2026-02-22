@@ -14,6 +14,7 @@ export default function SettingsScreen() {
     const publicKeyHex = useWalletStore((state) => state.publicKeyHex);
     const [biometricStatus, setBiometricStatus] = useState<'loading' | 'available' | 'unavailable'>('loading');
     const resetWallet = useWalletStore((state) => state.resetWallet);
+    const clearAllData = useAuthStore((state) => state.clearAllData);
     const router = useRouter();
 
     useEffect(() => {
@@ -25,14 +26,15 @@ export default function SettingsScreen() {
     const handleReset = () => {
         Alert.alert(
             "Reset Wallet",
-            "This will delete your private key and identity. This action cannot be undone.",
+            "This will delete your identity, credentials, and all data. This action cannot be undone.",
             [
                 { text: "Cancel", style: "cancel" },
                 {
                     text: "Delete & Reset",
                     style: "destructive",
                     onPress: async () => {
-                        await resetWallet();
+                        await resetWallet();  // Deletes private key from SecureStore
+                        await clearAllData();  // Clears credentials, sessions, salts
                         router.replace('/onboarding');
                     }
                 }

@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import * as SecureStore from 'expo-secure-store';
 
-export type ServiceType = 'Age Verification' | 'Student ID' | 'Email Alternative' | 'Trial access';
+export type ServiceType = 'Age Verification' | 'Student ID' | 'Email Alternative' | 'Trial access' | 'Trial';
 
 export interface Session {
     id: string; // Local wallet ID
@@ -57,6 +57,7 @@ export interface AuthState {
     addNotification: (title: string, message: string) => void;
     clearNotifications: () => void;
     clearHistory: () => void;
+    clearAllData: () => Promise<void>;
     seedDemoData: () => Promise<void>;
     biometricsEnabled: boolean;
     toggleBiometrics: () => void;
@@ -169,6 +170,25 @@ export const useAuthStore = create<AuthState>()(
             clearNotifications: () => set({ notifications: [] }),
             clearHistory: () => set({ history: [] }),
 
+            clearAllData: async () => {
+                // Clear all SecureStore items (salts)
+                const state = get();
+                for (const cred of state.credentials) {
+                    await SecureStore.deleteItemAsync(`salt_${cred.id}`);
+                }
+                
+                // Clear AsyncStorage (Zustand persist will handle this)
+                await zustandStorage.removeItem('zero-auth-store');
+                
+                // Clear in-memory state
+                set({
+                    sessions: [],
+                    history: [],
+                    credentials: [],
+                    notifications: []
+                });
+            },
+
             seedDemoData: async () => {
                 // Clear existing demo credentials to prevent type conflicts (e.g. Identity vs Age Verification)
                 set((state) => ({
@@ -196,6 +216,18 @@ export const useAuthStore = create<AuthState>()(
                         attributes: {
                             'expiry_year': '2027',
                             'university': 'Zero Auth Academy'
+                        }
+                    },
+                    {
+                        id: 'demo-trial',
+                        type: 'Trial',
+                        issuer: 'Zero Auth Demo',
+                        issuedAt: Date.now(),
+                        expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days from now
+                        verified: true,
+                        attributes: {
+                            'trial_period': '7',
+                            'trial_type': 'Premium Trial'
                         }
                     }
                 ];
