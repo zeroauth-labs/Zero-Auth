@@ -243,7 +243,7 @@
     state.pollTimer = setInterval(async () => {
       try {
         const status = await pollSessionStatus(sessionId);
-        if (status.status === 'completed' || status.status === 'verified') {
+        if (status.status === 'completed' || status.status === 'verified' || status.status === 'COMPLETED') {
           stopPolling();
           stopCountdown();
           showResult({ success: true, claims: status.claims || {} });
