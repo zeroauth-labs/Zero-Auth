@@ -1,11 +1,29 @@
 import cors from 'cors';
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import rateLimit from 'express-rate-limit';
 import { createSession, getSession, updateSession, cleanupExpiredSessions } from './db.js';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Rate limiting - protect against abuse
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: { error: 'Too many requests, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', limiter);
+
+// Request logging middleware
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] ${req.method} ${req.path} - ${req.ip}`);
+  next();
+});
 
 // Cleanup expired sessions every minute
 setInterval(async () => {
@@ -90,7 +108,12 @@ app.post('/api/v1/sessions/:id/proof', async (req, res) => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    version: '1.0.0',
+    uptime: process.uptime()
+  });
 });
 
 const PORT = process.env.PORT || 3000;
