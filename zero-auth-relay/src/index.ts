@@ -132,7 +132,8 @@ app.post('/api/v1/sessions/:id/proof', validateProofSubmission, async (req, res)
 
     if (claimsArray.length > 0) {
       // Check if proof has the required claims
-      const proofAttributes = proof?.attributes || {};
+      // Wallet sends {"proof": {"attributes": {...}}}
+      const proofAttributes = proof?.proof?.attributes || proof?.attributes || {};
       const missingClaims = claimsArray.filter(claim => !proofAttributes.hasOwnProperty(claim));
       
       if (missingClaims.length > 0) {

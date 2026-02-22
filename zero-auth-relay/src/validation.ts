@@ -55,7 +55,9 @@ export function validateSessionCreation(req: Request, res: Response, next: NextF
 export function validateProofSubmission(req: Request, res: Response, next: NextFunction) {
   const errors: ValidationError[] = [];
   
-  const { proof } = req.body;
+  // Accept either {"proof": {...}} or directly {...}
+  const body = req.body;
+  const proof = body?.proof || body;
   
   if (proof === undefined) {
     errors.push({
