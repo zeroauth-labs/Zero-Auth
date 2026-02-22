@@ -2,10 +2,19 @@
   "name": "@zero-auth/sdk",
   "version": "1.0.0",
   "description": "ZeroAuth SDK - Passwordless credential verification",
+  "type": "module",
   "main": "dist/index.js",
+  "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
+  "unpkg": "dist/zero-auth-sdk.umd.js",
+  "cdn": "unpkg",
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "tsc",
+    "build": "npm run build:esm && npm run build:umd",
+    "build:esm": "tsc",
+    "build:umd": "rollup -c rollup.config.js",
     "dev": "tsc --watch"
   },
   "keywords": [
@@ -16,7 +25,15 @@
     "passwordless"
   ],
   "license": "MIT",
+  "peerDependencies": {
+    "react": ">=16.8.0",
+    "react-dom": ">=16.8.0"
+  },
   "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "@rollup/plugin-typescript": "^11.0.0",
+    "rollup": "^4.0.0",
+    "rollup-plugin-peer-deps-external": "^2.2.4",
     "typescript": "^5.0.0"
   }
 }

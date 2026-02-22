@@ -2,66 +2,30 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-19)
+See: .planning/PROJECT.md
 
 **Core value:** Users can prove and verify credentials without passwords in a secure, seamless flow.
-**Current focus:** Phase 1: APK Parity + Release Hardening
+**Current focus:** Milestone v1.1 - Phase 5: Real ZK Flows + SDK
 
 ## Current Position
 
-Phase: 1 of 3 (APK Parity + Release Hardening - COMPLETE)
-Plan: 05 of 05 (All 5 plans complete)
-Status: Phase verified and complete
-Last activity: 2026-02-20 — Phase 1 verified (10/10 must-haves)
+Phase: 08-credential-validation (Phase 8 of 4 in v1.1)
+Plan: Planning
+Status: Ready
+Last activity: 2026-02-22 — Phase 8 plan created
 
-Progress: [██████████] 100%
+Progress: [██████████] 100% (Milestone v1.1 complete + Phase 8)
 
-## Performance Metrics
+## Pending Todos
 
-**Velocity:**
-- Total plans completed: 1
-- Average duration: ~7 minutes
-- Total execution time: 0.1 hours
-
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 1 - APK Parity | 1 | 5 | 7 min |
-
-**Recent Trend:**
-- Last 5 plans: 01-02 completed
-- Trend: Starting Phase 1 execution
-
-*Updated after each plan completion*
-
-## Accumulated Context
-
-### Decisions
-
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- **2026-02-19:** Converted zero-auth-wallet, zero-auth-relay, zero-auth-sdk from git submodules to regular tracked files in main repo (fixes git workflow issues)
-
-### Pending Todos
-
-[From .planning/todos/pending/ — ideas captured during sessions]
-
-None yet.
-
-### Blockers/Concerns
-
-[Issues that affect future work]
-
-- **zero-auth-relay and zero-auth-sdk:** Converted from submodules but not yet updated with latest code. Future plans should verify these directories are in sync.
+- Fix credential validation logic (approve-request.tsx, demo-site, auth-store)
 
 ## Session Continuity
 
-Last session: 2026-02-20
-Stopped at: Phase 1 COMPLETE - All 5 plans verified
-Resume file: None
+Last session: 2026-02-22
+Stopped at: Phase 8 plan created
+Next: `/gsd-execute-phase 8`
 
 ---
 
-*State updated: 2026-02-19*
+*State updated: 2026-02-22*
