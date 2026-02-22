@@ -184,7 +184,7 @@
     const payload = {
       verifier_name: state.settings.verifier_name,
       credential_type: useCase.credential_type,
-      claims: state.settings.claims,
+      required_claims: state.settings.claims,
       timeout: state.settings.timeout
     };
 
