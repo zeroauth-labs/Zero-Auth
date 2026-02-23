@@ -5,7 +5,7 @@ import rateLimit from 'express-rate-limit';
 import { createSession, getSession, updateSession, cleanupExpiredSessions } from './db.js';
 import { validateSessionCreation, validateProofSubmission, validateProofStructure } from './validation.js';
 import { ErrorCode, createError, SUPPORTED_CREDENTIAL_TYPES, isValidClaims } from './errors.js';
-import { verifyProof, loadVerificationKey, isVerificationEnabled, computeProofHash } from './zk.js';
+import { verifyProof, loadVerificationKeysFromDb, isVerificationEnabled, computeProofHash } from './zk.js';
 
 const app = express();
 app.use(cors());
@@ -44,7 +44,11 @@ app.post('/api/v1/sessions', validateSessionCreation, async (req, res) => {
     const session_id = uuidv4();
     const nonce = uuidv4();
 
-    const session = await createSession(session_id, nonce, verifier_name, required_claims);
+    // Use credential_type from request, default to first supported type
+    const selectedCredentialType = credential_type || SUPPORTED_CREDENTIAL_TYPES[0];
+
+    // Create session with credential_type
+    const session = await createSession(session_id, nonce, verifier_name, required_claims, selectedCredentialType);
 
     // Get the public URL from environment (required for callback)
     const publicUrl = process.env.PUBLIC_URL;
@@ -54,9 +58,6 @@ app.post('/api/v1/sessions', validateSessionCreation, async (req, res) => {
         'PUBLIC_URL environment variable not set'
       ));
     }
-
-    // Use credential_type from request, default to first supported type
-    const selectedCredentialType = credential_type || SUPPORTED_CREDENTIAL_TYPES[0];
 
     // QR Payload Format
     const qr_payload = {
@@ -160,7 +161,12 @@ app.post('/api/v1/sessions/:id/proof', validateProofSubmission, async (req, res)
       }
       
       // ZK Proof Verification - cryptographically verify the proof
-      const isValid = await verifyProof(proofData as Record<string, unknown>);
+      // Use the credential_type stored in the session to select the right verification key
+      const isValid = await verifyProof(
+        proofData as Record<string, unknown>,
+        [],
+        session.credential_type
+      );
       
       if (!isValid) {
         console.log('[ZK] Proof verification failed');
@@ -201,12 +207,22 @@ app.get('/health', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-// Load ZK verification key at startup
-loadVerificationKey();
+// Load ZK verification keys from database at startup
+async function startServer() {
+  try {
+    await loadVerificationKeysFromDb();
+    const supportedTypes = await import('./zk.js').then(m => m.getSupportedCredentialTypes());
+    
+    app.listen(PORT, () => {
+      console.log(`Zero Auth Relay running on port ${PORT}`);
+      console.log(`Using Supabase for session storage`);
+      console.log(`Supported credential types: ${SUPPORTED_CREDENTIAL_TYPES.join(', ')}`);
+      console.log(`ZK verification: ${supportedTypes.length > 0 ? 'enabled for: ' + supportedTypes.join(', ') : 'disabled (no keys in database)'}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
 
-app.listen(PORT, () => {
-  console.log(`Zero Auth Relay running on port ${PORT}`);
-  console.log(`Using Supabase for session storage`);
-  console.log(`Supported credential types: ${SUPPORTED_CREDENTIAL_TYPES.join(', ')}`);
-  console.log(`ZK verification: ${isVerificationEnabled() ? 'enabled' : 'disabled (no key)'}`);
-});
+startServer();

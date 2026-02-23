@@ -9,6 +9,7 @@ export interface Session {
   nonce: string;
   verifier_name?: string;
   required_claims?: Record<string, unknown>;
+  credential_type?: string;
   status: string;
   proof?: Record<string, unknown>;
   proof_hash?: string;
@@ -49,7 +50,8 @@ export async function createSession(
   sessionId: string,
   nonce: string,
   verifierName?: string,
-  requiredClaims?: unknown
+  requiredClaims?: unknown,
+  credentialType?: string
 ): Promise<Session> {
   const client = getSupabaseClient();
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
@@ -62,6 +64,7 @@ export async function createSession(
     nonce,
     verifier_name: verifierName,
     required_claims: claimsJson as unknown as Record<string, unknown>,
+    credential_type: credentialType,
     status: 'PENDING',
     proof: undefined,
     expires_at: expiresAt,
@@ -179,4 +182,68 @@ export async function cleanupExpiredSessions(): Promise<number> {
   }
 
   return deletedCount;
+}
+
+// Verification Keys Table
+export interface VerificationKey {
+  id?: string;
+  credential_type: string;
+  key_data: Record<string, unknown>;
+  created_at?: string;
+}
+
+/**
+ * Get verification key for a specific credential type from database
+ * @param credentialType - The credential type (e.g., 'age', 'student')
+ * @returns The verification key object, or null if not found
+ */
+export async function getVerificationKey(credentialType: string): Promise<Record<string, unknown> | null> {
+  const client = getSupabaseClient();
+
+  try {
+    const { data, error } = await client
+      .from('verification_keys')
+      .select('key_data')
+      .eq('credential_type', credentialType)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No key found for this credential type
+        console.log(`[ZK] No verification key found for credential type: ${credentialType}`);
+        return null;
+      }
+      console.error('Error fetching verification key:', error);
+      return null;
+    }
+
+    return data.key_data as Record<string, unknown>;
+  } catch (err) {
+    console.error('Error fetching verification key:', err);
+    return null;
+  }
+}
+
+/**
+ * List all credential types that have verification keys
+ * @returns Array of credential types
+ */
+export async function listCredentialTypes(): Promise<string[]> {
+  const client = getSupabaseClient();
+
+  try {
+    const { data, error } = await client
+      .from('verification_keys')
+      .select('credential_type');
+
+    if (error) {
+      console.error('Error listing credential types:', error);
+      return [];
+    }
+
+    return data?.map(row => row.credential_type) || [];
+  } catch (err) {
+    console.error('Error listing credential types:', err);
+    return [];
+  }
 }
