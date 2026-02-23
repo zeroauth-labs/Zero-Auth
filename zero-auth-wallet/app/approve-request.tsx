@@ -167,11 +167,23 @@ export default function ApproveRequestScreen() {
             console.log("Submitting proof to:", callbackUrl);
             console.log("Proof payload:", JSON.stringify({ proof: proof }).substring(0, 200));
             
-            const response = await fetch(callbackUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ proof: proof })
-            });
+            let response;
+            try {
+                response = await fetch(callbackUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ proof: proof })
+                });
+            } catch (networkError: any) {
+                console.error("Network error:", networkError);
+                // Check if it's a network connectivity issue
+                if (networkError.message?.includes('Network request failed') || 
+                    networkError.message?.includes('fetch failed') ||
+                    networkError.message?.includes('Network error')) {
+                    throw new Error("Network error - check your internet connection and try again");
+                }
+                throw new Error(`Network error: ${networkError.message || 'Unable to reach server'}`);
+            }
 
             console.log("Response status:", response.status);
             
