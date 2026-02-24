@@ -128,9 +128,11 @@ export async function verifyProof(
   }
 
   if (!verificationKey) {
-    // Verification disabled - accept all proofs (dev mode)
-    console.log('[ZK] Verification disabled - accepting proof without cryptographic check');
-    return true;
+    // Verification disabled - REJECT proofs without verification key
+    // This is a security critical check - we cannot accept proofs without verification
+    console.error('[ZK] CRITICAL: No verification key found - rejecting proof');
+    console.error('[ZK] Please configure ZK_VERIFICATION_KEY or add keys to database');
+    return false;  // Security: fail closed - reject proofs without verification
   }
 
   try {

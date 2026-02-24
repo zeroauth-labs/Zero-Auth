@@ -60,6 +60,9 @@ app.post('/api/v1/sessions', validateSessionCreation, async (req, res) => {
     }
 
     // QR Payload Format
+    // Use configured DID or derive from public URL
+    const relayDid = process.env.RELAY_DID || `did:web:${new URL(publicUrl).hostname}`;
+    
     const qr_payload = {
       v: 1,
       action: 'verify',
@@ -67,7 +70,7 @@ app.post('/api/v1/sessions', validateSessionCreation, async (req, res) => {
       nonce,
       verifier: {
         name: verifier_name || 'Zero Auth Verifier',
-        did: 'did:web:relay.zeroauth.app', // Mock DID - update for production
+        did: relayDid,
         callback: `${publicUrl}/api/v1/sessions/${session_id}/proof`,
       },
       required_claims: required_claims || ['birth_year'],
