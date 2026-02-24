@@ -138,6 +138,15 @@ export async function verifyProof(
   try {
     const vKey = verificationKey;
     
+    // Log verification attempt details
+    console.log('[ZK] Verification attempt:', {
+      credentialType,
+      proofKeys: Object.keys(proof),
+      publicSignalsCount: publicSignals.length,
+      protocol: proof.protocol || 'groth16',
+      curve: proof.curve || 'bn128'
+    });
+    
     // Format the proof for snarkjs
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const formattedProof: any = {
@@ -154,10 +163,13 @@ export async function verifyProof(
       publicSignals,
       formattedProof
     );
-
+    
+    console.log('[ZK] Verification result:', result);
     return result;
-  } catch (error) {
-    console.error('[ZK] Proof verification error:', error);
+  } catch (error: any) {
+    console.error('[ZK] CRITICAL: Proof verification error:', error.message);
+    console.error('[ZK] Error type:', error.constructor.name);
+    console.error('[ZK] Stack:', error.stack?.substring(0, 500));
     return false;
   }
 }

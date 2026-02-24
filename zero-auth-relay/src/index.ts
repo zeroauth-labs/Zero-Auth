@@ -102,34 +102,39 @@ app.get('/api/v1/sessions/:id', async (req, res) => {
 // Submit proof for a session
 app.post('/api/v1/sessions/:id/proof', validateProofSubmission, async (req, res) => {
   try {
-    console.log('Proof submission - session_id:', req.params.id);
-    console.log('Proof submission - body:', JSON.stringify(req.body).substring(0, 200));
+    console.log('[Proof] Submission started - session_id:', req.params.id);
+    console.log('[Proof] Submission body:', JSON.stringify(req.body).substring(0, 500));
     
     const session = await getSession(req.params.id);
-    console.log('Proof submission - session found:', !!session);
+    console.log('[Proof] Session found:', !!session, session ? `- status: ${session.status}` : '');
     
     if (!session) {
-      return res.status(404).json(createError(ErrorCode.SESSION_NOT_FOUND, 'Session not found or expired'));
+      console.log('[Proof] ERROR: Session not found:', req.params.id);
+      return res.status(404).json(createError(ErrorCode.SESSION_NOT_FOUND, 'Session not found or expired. The verification request may have timed out. Please try again.'));
     }
 
     // Check if session is already completed
     if (session.status === 'COMPLETED') {
-      return res.status(400).json(createError(ErrorCode.SESSION_ALREADY_COMPLETED, 'Session already completed'));
+      console.log('[Proof] ERROR: Session already completed:', req.params.id);
+      return res.status(400).json(createError(ErrorCode.SESSION_ALREADY_COMPLETED, 'This verification session has already been completed. Each session can only be used once.'));
     }
 
     // Get proof from request (either wrapped in "proof" key or direct)
     const proof = req.body;
     const proofData = proof?.proof || proof;
+    
+    console.log('[Proof] Proof data keys:', Object.keys(proofData || {}));
 
     // Proof Replay Protection - check for duplicate proof hash
     const proofHash = computeProofHash(proofData as Record<string, unknown>);
+    console.log('[Proof] Computed hash:', proofHash.substring(0, 16) + '...');
     
     // Check if this proof hash already exists in the session
     if (session.proof_hash && session.proof_hash === proofHash) {
-      console.log('[Replay] Duplicate proof detected');
+      console.log('[Proof] ERROR: Duplicate proof detected');
       return res.status(400).json(createError(
         ErrorCode.DUPLICATE_PROOF,
-        'This proof has already been submitted'
+        'This proof has already been submitted for this session. Please start a new verification.'
       ));
     }
 
@@ -145,26 +150,30 @@ app.post('/api/v1/sessions/:id/proof', validateProofSubmission, async (req, res)
         try {
           claimsArray = JSON.parse(sessionRequiredClaims);
         } catch {
+          console.log('[Proof] WARNING: Failed to parse required_claims:', sessionRequiredClaims);
           claimsArray = [];
         }
       }
     }
+
+    console.log('[Proof] Required claims:', claimsArray);
 
     if (claimsArray.length > 0) {
       // Proof Schema Validation - validate structure before processing
       const schemaResult = validateProofStructure(proofData);
       
       if (!schemaResult.valid) {
-        console.log('[Schema] Proof validation failed:', schemaResult.errors);
+        console.log('[Proof] ERROR: Proof schema validation failed:', schemaResult.errors);
         return res.status(400).json(createError(
           ErrorCode.INVALID_PROOF_SCHEMA,
-          'Invalid proof structure',
+          'Proof structure is invalid. Required fields: pi_a, pi_b, pi_c in groth16 format.',
           { errors: schemaResult.errors }
         ));
       }
       
       // ZK Proof Verification - cryptographically verify the proof
       // Use the credential_type stored in the session to select the right verification key
+      console.log('[Proof] Starting ZK verification for credential type:', session.credential_type);
       const isValid = await verifyProof(
         proofData as Record<string, unknown>,
         [],
@@ -172,29 +181,29 @@ app.post('/api/v1/sessions/:id/proof', validateProofSubmission, async (req, res)
       );
       
       if (!isValid) {
-        console.log('[ZK] Proof verification failed');
+        console.log('[Proof] ERROR: ZK verification failed for session:', req.params.id);
         return res.status(400).json(createError(
           ErrorCode.ZK_VERIFICATION_FAILED,
-          'ZK proof verification failed - proof is invalid'
+          'ZK proof verification failed. The proof could not be cryptographically verified. This may indicate tampering or a circuit mismatch.'
         ));
       }
       
-      console.log('ZK proof verified successfully');
+      console.log('[Proof] ZK verification successful for session:', req.params.id);
     }
 
-    console.log('About to update session...');
+    console.log('[Proof] Updating session to COMPLETED...');
     await updateSession(req.params.id, {
       status: 'COMPLETED',
       proof: proofData,
       proof_hash: proofHash,
     });
-    console.log('Session updated successfully');
+    console.log('[Proof] Session updated successfully:', req.params.id);
 
     res.json({ success: true });
   } catch (error: any) {
-    console.error('Error updating session with proof:', error);
-    console.error('Error stack:', error.stack);
-    res.status(500).json(createError(ErrorCode.DATABASE_ERROR, 'Failed to submit proof: ' + error.message));
+    console.error('[Proof] ERROR during proof submission:', error);
+    console.error('[Proof] Error stack:', error.stack);
+    res.status(500).json(createError(ErrorCode.DATABASE_ERROR, `Failed to process proof: ${error.message}`));
   }
 });
 
