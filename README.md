@@ -1,7 +1,7 @@
 # ZeroAuth
 
 Zero-Knowledge Proof authentication system for private credential verification.
-
+.
 ## Architecture
 
 ```
