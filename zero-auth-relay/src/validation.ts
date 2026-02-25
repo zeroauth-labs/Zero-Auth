@@ -8,6 +8,49 @@ export interface ValidationError {
   message: string;
 }
 
+// ZK Proof structure validation
+export interface ZKProof {
+  pi_a?: unknown[];
+  pi_b?: unknown[][];
+  pi_c?: unknown[];
+  protocol?: string;
+  curve?: string;
+}
+
+export interface ProofValidationResult {
+  valid: boolean;
+  errors: string[];
+}
+
+/**
+ * Validate ZK proof structure
+ * Checks for required fields pi_a, pi_b, pi_c in groth16 format
+ */
+export function validateProofStructure(proof: unknown): ProofValidationResult {
+  const errors: string[] = [];
+  
+  if (!proof || typeof proof !== 'object') {
+    return { valid: false, errors: ['Proof must be an object'] };
+  }
+  
+  const p = proof as Record<string, unknown>;
+  
+  // Check required fields for groth16
+  if (!p.pi_a || !Array.isArray(p.pi_a) || p.pi_a.length !== 2) {
+    errors.push('Missing or invalid pi_a (expected [bigint, bigint])');
+  }
+  
+  if (!p.pi_b || !Array.isArray(p.pi_b) || p.pi_b.length !== 2) {
+    errors.push('Missing or invalid pi_b (expected [[bigint, bigint], [bigint, bigint]])');
+  }
+  
+  if (!p.pi_c || !Array.isArray(p.pi_c) || p.pi_c.length !== 2) {
+    errors.push('Missing or invalid pi_c (expected [bigint, bigint])');
+  }
+  
+  return { valid: errors.length === 0, errors };
+}
+
 export function validateSessionCreation(req: Request, res: Response, next: NextFunction) {
   const errors: ValidationError[] = [];
   

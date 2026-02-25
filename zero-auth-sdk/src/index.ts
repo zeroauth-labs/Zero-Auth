@@ -102,7 +102,18 @@ export class ZeroAuth {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to create session: ${response.statusText}`);
+        let errorMessage = `Failed to create session: ${response.status}`;
+        try {
+          const errorJson = await response.json();
+          errorMessage = `Server error (${response.status}): ${errorJson.message || errorJson.error || JSON.stringify(errorJson)}`;
+          console.error('[ZeroAuth SDK] Session creation error:', errorJson);
+        } catch {
+          // Response wasn't JSON
+          const errorText = await response.text();
+          errorMessage = `Server error (${response.status}): ${errorText.substring(0, 100)}`;
+          console.error('[ZeroAuth SDK] Session creation error:', errorText);
+        }
+        throw new Error(errorMessage);
       }
 
       const { session_id, qr_payload } = await response.json();
@@ -136,6 +147,7 @@ export class ZeroAuth {
           const response = await fetch(`${this.config.relayUrl}/api/v1/sessions/${sessionId}`);
           if (response.ok) {
             const session = await response.json();
+            console.log('[ZeroAuth SDK] Session status:', session.status);
             if (session.status === 'COMPLETED') {
               resolve({
                 success: true,
@@ -143,9 +155,29 @@ export class ZeroAuth {
                 claims: session.proof?.attributes || {}
               });
               return true;
+            } else if (session.status === 'expired') {
+              console.log('[ZeroAuth SDK] Session expired');
+              resolve({
+                success: false,
+                sessionId,
+                error: 'Verification session expired. Please try again.'
+              });
+              return true; // Stop polling
             }
+          } else if (response.status === 404) {
+            console.log('[ZeroAuth SDK] Session not found (404)');
+            resolve({
+              success: false,
+              sessionId,
+              error: 'Verification session not found. It may have expired.'
+            });
+            return true; // Stop polling
+          } else {
+            console.log('[ZeroAuth SDK] Status check failed:', response.status);
           }
-        } catch {}
+        } catch (error) {
+          console.error('[ZeroAuth SDK] Status check error:', error);
+        }
         return false;
       };
 

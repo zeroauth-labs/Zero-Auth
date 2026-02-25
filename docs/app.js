@@ -340,6 +340,17 @@
   function showResult(result) {
     elements.qrSection.classList.add('hidden');
     
+    // Helper function to escape HTML and prevent XSS
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+    
     if (result.success) {
       elements.resultContent.innerHTML = `
         <div class="result-success">
@@ -349,7 +360,7 @@
             <h4>Received Claims:</h4>
             <ul>
               ${Object.entries(result.claims || {}).map(([key, value]) => `
-                <li><strong>${key}:</strong> ${JSON.stringify(value)}</li>
+                <li><strong>${escapeHtml(key)}:</strong> ${escapeHtml(JSON.stringify(value))}</li>
               `).join('') || '<li>No claims received</li>'}
             </ul>
           </div>
@@ -360,7 +371,7 @@
         <div class="result-error">
           <div class="icon">✗</div>
           <h3>Verification Failed</h3>
-          <p>${result.error || 'An error occurred during verification.'}</p>
+          <p>${escapeHtml(result.error) || 'An error occurred during verification.'}</p>
         </div>
       `;
     }

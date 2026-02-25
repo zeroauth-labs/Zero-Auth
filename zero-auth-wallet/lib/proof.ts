@@ -56,7 +56,14 @@ export async function generateProof(
     await Promise.all([wasmAsset.downloadAsync(), zkeyAsset.downloadAsync()]);
 
     if (!wasmAsset.localUri || !zkeyAsset.localUri) {
-        throw new Error("Failed to load circuit assets");
+        throw new Error(`[ZK] CRITICAL: Failed to load circuit assets. WASM: ${!!wasmAsset.localUri}, ZKEY: ${!!zkeyAsset.localUri}. Please check that circuit files are bundled correctly.`);
+    }
+
+    try {
+        const wasmB64 = await FileSystem.readAsStringAsync(wasmAsset.localUri, { encoding: 'base64' });
+        const zkeyB64 = await FileSystem.readAsStringAsync(zkeyAsset.localUri, { encoding: 'base64' });
+    } catch (error: any) {
+        throw new Error(`[ZK] CRITICAL: Failed to read circuit files from disk: ${error.message}. Asset URIs: WASM=${wasmAsset.localUri}, ZKEY=${zkeyAsset.localUri}`);
     }
 
     const wasmB64 = await FileSystem.readAsStringAsync(wasmAsset.localUri, { encoding: 'base64' });
@@ -119,20 +126,36 @@ async function performProof(engine: any, inputs: any, wasmB64: string, zkeyB64: 
         typeof value === 'bigint' ? value.toString() : value
     ));
 
-    const { proof, publicSignals } = await engine.execute('GENERATE_PROOF', {
-        inputs,
-        wasmB64,
-        zkeyB64
-    });
+    try {
+        const { proof, publicSignals } = await engine.execute('GENERATE_PROOF', {
+            inputs,
+            wasmB64,
+            zkeyB64
+        });
 
-    console.log("Proof Received from Bridge Successfully!");
+        if (!proof) {
+            throw new Error('[ZK] CRITICAL: Proof generation returned null/undefined. Check ZK circuit and inputs.');
+        }
 
-    return {
-        pi_a: proof.pi_a,
-        pi_b: proof.pi_b,
-        pi_c: proof.pi_c,
-        protocol: proof.protocol,
-        curve: proof.curve,
-        publicSignals: publicSignals
-    };
+        // Validate proof structure before returning
+        if (!proof.pi_a || !proof.pi_b || !proof.pi_c) {
+            throw new Error(`[ZK] CRITICAL: Proof missing required fields. pi_a: ${!!proof.pi_a}, pi_b: ${!!proof.pi_b}, pi_c: ${!!proof.pi_c}`);
+        }
+
+        console.log("Proof Received from Bridge Successfully!");
+        console.log(`[ZK] Proof stats - pi_a: ${proof.pi_a.length}, pi_b: ${proof.pi_b.length}, pi_c: ${proof.pi_c.length}`);
+
+        return {
+            pi_a: proof.pi_a,
+            pi_b: proof.pi_b,
+            pi_c: proof.pi_c,
+            protocol: proof.protocol,
+            curve: proof.curve,
+            publicSignals: publicSignals
+        };
+    } catch (error: any) {
+        console.error('[ZK] Proof generation failed:', error.message);
+        console.error('[ZK] Error details:', error.stack);
+        throw new Error(`[ZK] Proof generation failed: ${error.message}. Check that your credential has valid attributes for this credential type.`);
+    }
 }

@@ -3,8 +3,9 @@ import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import rateLimit from 'express-rate-limit';
 import { createSession, getSession, updateSession, cleanupExpiredSessions } from './db.js';
-import { validateSessionCreation, validateProofSubmission } from './validation.js';
+import { validateSessionCreation, validateProofSubmission, validateProofStructure } from './validation.js';
 import { ErrorCode, createError, SUPPORTED_CREDENTIAL_TYPES, isValidClaims } from './errors.js';
+import { verifyProof, loadVerificationKeysFromDb, isVerificationEnabled, computeProofHash } from './zk.js';
 
 const app = express();
 app.use(cors());
@@ -43,7 +44,11 @@ app.post('/api/v1/sessions', validateSessionCreation, async (req, res) => {
     const session_id = uuidv4();
     const nonce = uuidv4();
 
-    const session = await createSession(session_id, nonce, verifier_name, required_claims);
+    // Use credential_type from request, default to first supported type
+    const selectedCredentialType = credential_type || SUPPORTED_CREDENTIAL_TYPES[0];
+
+    // Create session with credential_type
+    const session = await createSession(session_id, nonce, verifier_name, required_claims, selectedCredentialType);
 
     // Get the public URL from environment (required for callback)
     const publicUrl = process.env.PUBLIC_URL;
@@ -54,10 +59,10 @@ app.post('/api/v1/sessions', validateSessionCreation, async (req, res) => {
       ));
     }
 
-    // Use credential_type from request, default to first supported type
-    const selectedCredentialType = credential_type || SUPPORTED_CREDENTIAL_TYPES[0];
-
     // QR Payload Format
+    // Use configured DID or derive from public URL
+    const relayDid = process.env.RELAY_DID || `did:web:${new URL(publicUrl).hostname}`;
+    
     const qr_payload = {
       v: 1,
       action: 'verify',
@@ -65,7 +70,7 @@ app.post('/api/v1/sessions', validateSessionCreation, async (req, res) => {
       nonce,
       verifier: {
         name: verifier_name || 'Zero Auth Verifier',
-        did: 'did:web:relay.zeroauth.app', // Mock DID - update for production
+        did: relayDid,
         callback: `${publicUrl}/api/v1/sessions/${session_id}/proof`,
       },
       required_claims: required_claims || ['birth_year'],
@@ -97,24 +102,44 @@ app.get('/api/v1/sessions/:id', async (req, res) => {
 // Submit proof for a session
 app.post('/api/v1/sessions/:id/proof', validateProofSubmission, async (req, res) => {
   try {
-    console.log('Proof submission - session_id:', req.params.id);
-    console.log('Proof submission - body:', JSON.stringify(req.body).substring(0, 200));
+    console.log('[Proof] Submission started - session_id:', req.params.id);
+    console.log('[Proof] Submission body:', JSON.stringify(req.body).substring(0, 500));
     
     const session = await getSession(req.params.id);
-    console.log('Proof submission - session found:', !!session);
+    console.log('[Proof] Session found:', !!session, session ? `- status: ${session.status}` : '');
     
     if (!session) {
-      return res.status(404).json(createError(ErrorCode.SESSION_NOT_FOUND, 'Session not found or expired'));
+      console.log('[Proof] ERROR: Session not found:', req.params.id);
+      return res.status(404).json(createError(ErrorCode.SESSION_NOT_FOUND, 'Session not found or expired. The verification request may have timed out. Please try again.'));
     }
 
     // Check if session is already completed
     if (session.status === 'COMPLETED') {
-      return res.status(400).json(createError(ErrorCode.SESSION_ALREADY_COMPLETED, 'Session already completed'));
+      console.log('[Proof] ERROR: Session already completed:', req.params.id);
+      return res.status(400).json(createError(ErrorCode.SESSION_ALREADY_COMPLETED, 'This verification session has already been completed. Each session can only be used once.'));
+    }
+
+    // Get proof from request (either wrapped in "proof" key or direct)
+    const proof = req.body;
+    const proofData = proof?.proof || proof;
+    
+    console.log('[Proof] Proof data keys:', Object.keys(proofData || {}));
+
+    // Proof Replay Protection - check for duplicate proof hash
+    const proofHash = computeProofHash(proofData as Record<string, unknown>);
+    console.log('[Proof] Computed hash:', proofHash.substring(0, 16) + '...');
+    
+    // Check if this proof hash already exists in the session
+    if (session.proof_hash && session.proof_hash === proofHash) {
+      console.log('[Proof] ERROR: Duplicate proof detected');
+      return res.status(400).json(createError(
+        ErrorCode.DUPLICATE_PROOF,
+        'This proof has already been submitted for this session. Please start a new verification.'
+      ));
     }
 
     // Validate required_claims against proof
     const sessionRequiredClaims = session.required_claims;
-    const proof = req.body;
 
     // Handle required_claims as either array or JSON string from database
     let claimsArray: string[] = [];
@@ -125,42 +150,60 @@ app.post('/api/v1/sessions/:id/proof', validateProofSubmission, async (req, res)
         try {
           claimsArray = JSON.parse(sessionRequiredClaims);
         } catch {
+          console.log('[Proof] WARNING: Failed to parse required_claims:', sessionRequiredClaims);
           claimsArray = [];
         }
       }
     }
 
+    console.log('[Proof] Required claims:', claimsArray);
+
     if (claimsArray.length > 0) {
-      // For ZK proofs, we can't check attributes - the cryptographic proof itself verifies the claims
-      // The proof contains pi_a, pi_b, pi_c, etc. which prove the claim without revealing data
-      // So we just verify that a proof was submitted (contains proof data)
+      // Proof Schema Validation - validate structure before processing
+      const schemaResult = validateProofStructure(proofData);
       
-      const hasProofData = proof?.proof?.pi_a || proof?.pi_a;
-      
-      if (!hasProofData) {
+      if (!schemaResult.valid) {
+        console.log('[Proof] ERROR: Proof schema validation failed:', schemaResult.errors);
         return res.status(400).json(createError(
-          ErrorCode.INVALID_PROOF,
-          'No proof data submitted'
+          ErrorCode.INVALID_PROOF_SCHEMA,
+          'Proof structure is invalid. Required fields: pi_a, pi_b, pi_c in groth16 format.',
+          { errors: schemaResult.errors }
         ));
       }
       
-      // For now, we trust the ZK proof since it's cryptographically verified
-      // TODO: Add actual ZK verification in future
-      console.log('ZK proof received - claims verified cryptographically');
+      // ZK Proof Verification - cryptographically verify the proof
+      // Use the credential_type stored in the session to select the right verification key
+      console.log('[Proof] Starting ZK verification for credential type:', session.credential_type);
+      const isValid = await verifyProof(
+        proofData as Record<string, unknown>,
+        [],
+        session.credential_type
+      );
+      
+      if (!isValid) {
+        console.log('[Proof] ERROR: ZK verification failed for session:', req.params.id);
+        return res.status(400).json(createError(
+          ErrorCode.ZK_VERIFICATION_FAILED,
+          'ZK proof verification failed. The proof could not be cryptographically verified. This may indicate tampering or a circuit mismatch.'
+        ));
+      }
+      
+      console.log('[Proof] ZK verification successful for session:', req.params.id);
     }
 
-    console.log('About to update session...');
+    console.log('[Proof] Updating session to COMPLETED...');
     await updateSession(req.params.id, {
       status: 'COMPLETED',
-      proof: proof,
+      proof: proofData,
+      proof_hash: proofHash,
     });
-    console.log('Session updated successfully');
+    console.log('[Proof] Session updated successfully:', req.params.id);
 
     res.json({ success: true });
   } catch (error: any) {
-    console.error('Error updating session with proof:', error);
-    console.error('Error stack:', error.stack);
-    res.status(500).json(createError(ErrorCode.DATABASE_ERROR, 'Failed to submit proof: ' + error.message));
+    console.error('[Proof] ERROR during proof submission:', error);
+    console.error('[Proof] Error stack:', error.stack);
+    res.status(500).json(createError(ErrorCode.DATABASE_ERROR, `Failed to process proof: ${error.message}`));
   }
 });
 
@@ -175,8 +218,23 @@ app.get('/health', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Zero Auth Relay running on port ${PORT}`);
-  console.log(`Using Supabase for session storage`);
-  console.log(`Supported credential types: ${SUPPORTED_CREDENTIAL_TYPES.join(', ')}`);
-});
+
+// Load ZK verification keys from database at startup
+async function startServer() {
+  try {
+    await loadVerificationKeysFromDb();
+    const supportedTypes = await import('./zk.js').then(m => m.getSupportedCredentialTypes());
+    
+    app.listen(PORT, () => {
+      console.log(`Zero Auth Relay running on port ${PORT}`);
+      console.log(`Using Supabase for session storage`);
+      console.log(`Supported credential types: ${SUPPORTED_CREDENTIAL_TYPES.join(', ')}`);
+      console.log(`ZK verification: ${supportedTypes.length > 0 ? 'enabled for: ' + supportedTypes.join(', ') : 'disabled (no keys in database)'}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
