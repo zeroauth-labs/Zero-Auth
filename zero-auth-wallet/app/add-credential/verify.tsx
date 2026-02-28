@@ -5,8 +5,8 @@ import { BadgeCheck, Check, Fingerprint, Hash, ShieldCheck, X } from 'lucide-rea
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, View, TouchableOpacity } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import { getRandomValues } from 'expo-crypto';
 import { useZKEngine } from '@/components/ZKEngine';
+import { generateSecureId, generateSecureSalt } from '@/lib/utils';
 
 export default function VerifyScreen() {
     const router = useRouter();
@@ -34,9 +34,7 @@ export default function VerifyScreen() {
 
                 // Step 1: Generate Salt
                 setCurrentStep(1);
-                const saltBytes = new Uint8Array(32);
-                getRandomValues(saltBytes);
-                const salt = '0x' + Buffer.from(saltBytes).toString('hex');
+                const salt = generateSecureSalt();
                 await new Promise(r => setTimeout(r, 800));
 
                 // Step 2: Compute Commitment
@@ -58,7 +56,7 @@ export default function VerifyScreen() {
 
                 // Step 3: Secure
                 setCurrentStep(3);
-                const credentialId = Math.random().toString(36).substring(7);
+                const credentialId = generateSecureId();
                 await SecureStore.setItemAsync(`salt_${credentialId}`, salt);
                 await new Promise(r => setTimeout(r, 1000));
 

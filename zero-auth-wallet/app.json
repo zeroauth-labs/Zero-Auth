@@ -2,7 +2,7 @@
   "expo": {
     "name": "zero-auth",
     "slug": "zero-auth",
-    "version": "1.0.0",
+    "version": "1.2.000",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "zeroauth",

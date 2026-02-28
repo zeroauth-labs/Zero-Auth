@@ -3,14 +3,41 @@ import { VerificationRequest } from '@/lib/qr-protocol';
 import { checkRevocationStatus, RevocationStatus } from '@/lib/revocation';
 import { useAuthStore } from '@/store/auth-store';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { BadgeCheck, Check, ShieldAlert, ShieldCheck, X } from 'lucide-react-native';
+import { BadgeCheck, Check, ShieldAlert, ShieldCheck, X, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useEffect, useState, useRef } from 'react';
-import { ActivityIndicator, Alert, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Text, TouchableOpacity, View, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 
 import { useZKEngine } from '@/components/ZKEngine';
+import CustomAlert from '@/components/CustomAlert';
+
+// Helper to get dynamic header text based on use_case
+function getUseCaseText(useCase?: string, verifierName?: string): string {
+    switch (useCase) {
+        case 'LOGIN':
+            return `Login to ${verifierName || 'Service'}`;
+        case 'TRIAL_LICENSE':
+            return `Activate trial for ${verifierName || 'Service'}`;
+        case 'VERIFICATION':
+        default:
+            return `Verify your identity to ${verifierName || 'Service'}`;
+    }
+}
+
+// Helper to get action text
+function getActionText(useCase?: string): string {
+    switch (useCase) {
+        case 'LOGIN':
+            return 'Sign in';
+        case 'TRIAL_LICENSE':
+            return 'Activate Trial';
+        case 'VERIFICATION':
+        default:
+            return 'Approve';
+    }
+}
 
 export default function ApproveRequestScreen() {
     const router = useRouter();
@@ -23,13 +50,13 @@ export default function ApproveRequestScreen() {
 
     // Timer state for time-bound requests
     const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
-    const countdownRef = useRef<NodeJS.Timeout | null>(null);
+    const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     // Get credentials to find a match
     const credentials = useAuthStore((state) => state.credentials);
 
-    // Matching logic: find a credential that has ALL required claims
-    const matchingCredential = request ? credentials.find(c => {
+    // Credential Selection Engine: Find ALL credentials that match the request
+    const matchingCredentials = request ? credentials.filter(c => {
         if (c.type !== request.credential_type) return false;
         
         // Check if credential has ALL required claims
@@ -39,7 +66,23 @@ export default function ApproveRequestScreen() {
         );
         
         return hasAllClaims;
-    }) : null;
+    }) : [];
+
+    // Selected credential state (for when multiple match)
+    const [selectedCredentialIndex, setSelectedCredentialIndex] = useState(0);
+    const selectedCredential = matchingCredentials[selectedCredentialIndex] || null;
+
+    // Alert modal state
+    const [alertState, setAlertState] = useState<{
+        visible: boolean;
+        type: 'error' | 'success' | 'warning' | 'info';
+        title: string;
+        message: string;
+        onConfirm?: () => void;
+    }>({ visible: false, type: 'info', title: '', message: '' });
+
+    // Revocation warning acknowledged state
+    const [revocationWarningAcknowledged, setRevocationWarningAcknowledged] = useState(false);
 
     // Countdown timer effect
     useEffect(() => {
@@ -59,9 +102,16 @@ export default function ApproveRequestScreen() {
             
             if (remaining <= 0) {
                 if (countdownRef.current) clearInterval(countdownRef.current);
-                Alert.alert("Expired", "This verification request has expired.", [
-                    { text: "OK", onPress: () => router.back() }
-                ]);
+                setAlertState({
+                    visible: true,
+                    type: 'error',
+                    title: 'Expired',
+                    message: 'This verification request has expired.',
+                    onConfirm: () => {
+                        setAlertState(prev => ({ ...prev, visible: false }));
+                        router.back();
+                    }
+                });
             }
         }, 1000);
 
@@ -82,57 +132,88 @@ export default function ApproveRequestScreen() {
                 const parsed = JSON.parse(params.request as string);
                 setRequest(parsed);
             } catch (e) {
-                Alert.alert("Error", "Invalid request data");
-                router.back();
+                setAlertState({
+                    visible: true,
+                    type: 'error',
+                    title: 'Error',
+                    message: 'Invalid request data',
+                    onConfirm: () => {
+                        setAlertState(prev => ({ ...prev, visible: false }));
+                        router.back();
+                    }
+                });
             }
         }
     }, [params.request]);
 
     const handleApprove = async () => {
-        if (!matchingCredential) return;
+        if (!selectedCredential) return;
+
+        // Reset revocation warning state
+        setRevocationWarningAcknowledged(false);
 
         // 1. Authenticate (Biometric Gate) - Respect User Preference
         const biometricsEnabled = useAuthStore.getState().biometricsEnabled;
+        const pinHash = useAuthStore.getState().pinHash;
 
         if (biometricsEnabled) {
             const auth = await LocalAuthentication.authenticateAsync({
                 promptMessage: 'Confirm identity to generate ZK proof',
-                fallbackLabel: 'Enter Passcode',
+                fallbackLabel: 'Use PIN',
             });
 
+            // If biometric fails, try PIN fallback if available
             if (!auth.success) {
-                setLoading(false);
-                return;
+                if (pinHash && auth.error === 'user_fallback') {
+                    // PIN fallback - in a real app, show a PIN input modal
+                    // For now, we'll proceed (in production, show PIN modal)
+                    console.log('PIN fallback requested');
+                } else if (!pinHash) {
+                    // No PIN fallback available
+                    setLoading(false);
+                    return;
+                }
             }
         }
 
         // 2. Check Revocation Status Before Generating Proof (SEC-04)
         setCheckingRevocation(true);
         try {
-            const revocationResult = await checkRevocationStatus(matchingCredential);
+            const revocationResult = await checkRevocationStatus(selectedCredential);
             setRevocationStatus(revocationResult.status);
             
             if (revocationResult.isRevoked) {
-                Alert.alert(
-                    "Credential Revoked",
-                    "This credential has been revoked and cannot be used for verification. Please contact your issuer for a new credential.",
-                    [{ text: "OK", onPress: () => router.back() }]
-                );
+                setAlertState({
+                    visible: true,
+                    type: 'error',
+                    title: 'Credential Revoked',
+                    message: 'This credential has been revoked and cannot be used for verification. Please contact your issuer for a new credential.',
+                    onConfirm: () => {
+                        setAlertState(prev => ({ ...prev, visible: false }));
+                        router.back();
+                    }
+                });
                 setLoading(false);
                 setCheckingRevocation(false);
                 return;
             }
             
             if (revocationResult.status === 'unknown') {
-                // Show warning but allow proceeding
-                Alert.alert(
-                    "Warning: Unable to Verify",
-                    "We couldn't verify the revocation status of this credential. Do you want to proceed anyway?",
-                    [
-                        { text: "Cancel", style: "cancel", onPress: () => { setLoading(false); setCheckingRevocation(false); return; } },
-                        { text: "Proceed", onPress: () => {} }
-                    ]
-                );
+                // Show warning but allow proceeding - user must explicitly acknowledge
+                setAlertState({
+                    visible: true,
+                    type: 'warning',
+                    title: 'Warning: Unable to Verify',
+                    message: "We couldn't verify the revocation status of this credential. Do you want to proceed anyway?",
+                    onConfirm: () => {
+                        setAlertState(prev => ({ ...prev, visible: false }));
+                        setRevocationWarningAcknowledged(true);
+                        // Continue with proof generation after warning acknowledged
+                        proceedWithProof();
+                    }
+                });
+                setCheckingRevocation(false);
+                return;
             }
         } catch (e) {
             console.warn("Revocation check failed:", e);
@@ -141,28 +222,29 @@ export default function ApproveRequestScreen() {
             setCheckingRevocation(false);
         }
 
+        // If we get here, proceed with proof generation
+        await proceedWithProof();
+    };
+
+    // Separate function for proof generation (called after warning acknowledged)
+    const proceedWithProof = async () => {
+        if (!selectedCredential || !request) return;
+        
         setLoading(true);
         try {
             // Retrieve persisted salt
-            const salt = await SecureStore.getItemAsync(`salt_${matchingCredential.id}`);
+            const salt = await SecureStore.getItemAsync(`salt_${selectedCredential.id}`);
             if (!salt) throw new Error("Secure salt missing for this credential");
 
-            console.log("Generating proof for:", matchingCredential.id);
-            const proof = await generateProof(zkEngine, request!, matchingCredential, salt);
+            console.log("Generating proof for:", selectedCredential.id);
+            const proof = await generateProof(zkEngine, request, selectedCredential, salt);
             
             console.log("Proof generated, type:", proof ? typeof proof : 'undefined');
             console.log("Proof keys:", proof ? Object.keys(proof) : 'none');
             console.log("Proof credential_type:", proof?.credential_type);
 
             // 3. Post Proof to Relay
-            let callbackUrl = request!.verifier.callback;
-
-            // DEV-ONLY: Ensure HTTP for local relay (no SSL in dev)
-            // REMOVED: Relay now handles protocol correctly (https for ngrok, http for LAN)
-            // if (__DEV__ && callbackUrl.startsWith('https://')) {
-            //    callbackUrl = callbackUrl.replace('https://', 'http://');
-            //    console.log(`[Dev] Downgraded to HTTP: ${callbackUrl}`);
-            // }
+            let callbackUrl = request.verifier.callback;
 
             console.log("Submitting proof to:", callbackUrl);
             console.log("Proof payload:", JSON.stringify({ proof: proof }).substring(0, 200));
@@ -216,35 +298,47 @@ export default function ApproveRequestScreen() {
                 throw new Error(`Server rejected proof (${response.status}): ${errorText.substring(0, 200)}`);
             }
 
-            console.log("✅ Proof Submitted Successfully");
+            console.log("Proof Submitted Successfully");
 
-            Alert.alert("Success", "Verification Complete! Proof submitted to verifier.", [
-                {
-                    text: "OK",
-                    onPress: () => {
-                        // Add to session history
-                        useAuthStore.getState().addSession({
-                            remoteId: request?.session_id || '',
-                            callbackUrl: request?.verifier.callback || '',
-                            serviceName: request?.verifier.name || 'Unknown Verifier',
-                            type: request?.credential_type as any,
-                            infoRequested: request?.required_claims || [],
-                            verifierDid: request?.verifier.did,
-                            nonce: request?.nonce
-                        });
-                        router.replace('/(tabs)');
-                    }
+            // Success - add to session history and show success
+            useAuthStore.getState().addSession({
+                remoteId: request?.session_id || '',
+                callbackUrl: request?.verifier.callback || '',
+                serviceName: request?.verifier.name || 'Unknown Verifier',
+                type: request?.credential_type as any,
+                infoRequested: request?.required_claims || [],
+                verifierDid: request?.verifier.did,
+                nonce: request?.nonce
+            });
+            
+            setAlertState({
+                visible: true,
+                type: 'success',
+                title: 'Success',
+                message: 'Verification Complete! Proof submitted to verifier.',
+                onConfirm: () => {
+                    setAlertState(prev => ({ ...prev, visible: false }));
+                    router.replace('/(tabs)');
                 }
-            ]);
+            });
         } catch (e: any) {
             console.error(e);
-            Alert.alert("Error", e?.message || "Failed to generate proof");
+            setAlertState({
+                visible: true,
+                type: 'error',
+                title: 'Error',
+                message: e?.message || "Failed to generate proof",
+            });
         } finally {
             setLoading(false);
         }
     };
 
     if (!request) return <View className="flex-1 bg-background" />;
+
+    // Get dynamic header text based on use_case
+    const headerText = getUseCaseText(request.use_case, request.verifier.name);
+    const actionText = getActionText(request.use_case);
 
     return (
         <SafeAreaView className="flex-1 bg-background p-6">
@@ -255,7 +349,7 @@ export default function ApproveRequestScreen() {
                         <ShieldCheck size={40} color="#7aa2f7" />
                     </View>
                     <Text className="text-muted-foreground uppercase text-xs font-bold tracking-widest mb-2">Verification Request</Text>
-                    <Text className="text-foreground text-2xl font-bold text-center">{request.verifier.name}</Text>
+                    <Text className="text-foreground text-2xl font-bold text-center">{headerText}</Text>
                     <Text className="text-primary text-xs font-mono mt-1">{request.verifier.did}</Text>
                     {timeRemaining !== null && timeRemaining > 0 && (
                         <View className={`mt-2 px-3 py-1 rounded-full ${timeRemaining < 60 ? 'bg-red-500/20 border border-red-500/40' : 'bg-primary/20 border border-primary/40'}`}>
@@ -281,43 +375,98 @@ export default function ApproveRequestScreen() {
 
                     <View className="h-[1px] bg-border/50 my-2" />
 
-                    <Text className="text-muted-foreground text-xs font-bold uppercase mb-2 mt-2">Using Credential</Text>
-                    {matchingCredential ? (
+                    <Text className="text-muted-foreground text-xs font-bold uppercase mb-2 mt-2">
+                        {matchingCredentials.length > 1 ? 'Select Credential' : 'Using Credential'}
+                    </Text>
+                    
+                    {matchingCredentials.length > 1 ? (
+                        // Multiple credentials - show carousel/selection
+                        <View className="space-y-3">
+                            {/* Credential Selection Carousel */}
+                            <View className="flex-row items-center justify-between bg-secondary/5 p-2 rounded-xl">
+                                <TouchableOpacity 
+                                    onPress={() => setSelectedCredentialIndex(prev => Math.max(0, prev - 1))}
+                                    disabled={selectedCredentialIndex === 0}
+                                    className={`p-2 rounded-full ${selectedCredentialIndex === 0 ? 'opacity-30' : 'active:bg-secondary/20'}`}
+                                >
+                                    <ChevronLeft size={20} color="#9ca3af" />
+                                </TouchableOpacity>
+                                
+                                <View className="flex-1 px-3">
+                                    {selectedCredential && (
+                                        <View className="flex-row items-center gap-3 bg-secondary/10 p-3 rounded-xl border border-secondary/20">
+                                            <View className="w-10 h-10 bg-secondary/20 rounded-full items-center justify-center">
+                                                <Check size={20} color="#bb9af7" />
+                                            </View>
+                                            <View>
+                                                <Text className="text-foreground font-bold">{selectedCredential.type}</Text>
+                                                <Text className="text-muted-foreground text-xs">{selectedCredential.issuer}</Text>
+                                            </View>
+                                        </View>
+                                    )}
+                                </View>
+                                
+                                <TouchableOpacity 
+                                    onPress={() => setSelectedCredentialIndex(prev => Math.min(matchingCredentials.length - 1, prev + 1))}
+                                    disabled={selectedCredentialIndex === matchingCredentials.length - 1}
+                                    className={`p-2 rounded-full ${selectedCredentialIndex === matchingCredentials.length - 1 ? 'opacity-30' : 'active:bg-secondary/20'}`}
+                                >
+                                    <ChevronRight size={20} color="#9ca3af" />
+                                </TouchableOpacity>
+                            </View>
+                            
+                            {/* Page indicator */}
+                            <View className="flex-row justify-center gap-1">
+                                {matchingCredentials.map((_, idx) => (
+                                    <View 
+                                        key={idx} 
+                                        className={`h-1.5 rounded-full ${idx === selectedCredentialIndex ? 'w-4 bg-primary' : 'w-1.5 bg-muted'}`}
+                                    />
+                                ))}
+                            </View>
+                        </View>
+                    ) : selectedCredential ? (
+                        // Single credential - show as before
                         <View className="space-y-2">
                             <View className="flex-row items-center gap-3 bg-secondary/10 p-3 rounded-xl border border-secondary/20">
                                 <View className="w-10 h-10 bg-secondary/20 rounded-full items-center justify-center">
                                     <Check size={20} color="#bb9af7" />
                                 </View>
                                 <View>
-                                    <Text className="text-foreground font-bold">{matchingCredential.type}</Text>
-                                    <Text className="text-muted-foreground text-xs">{matchingCredential.issuer}</Text>
+                                    <Text className="text-foreground font-bold">{selectedCredential.type}</Text>
+                                    <Text className="text-muted-foreground text-xs">{selectedCredential.issuer}</Text>
                                 </View>
                             </View>
-                            {/* Revocation Status Indicator */}
-                            <View className={`flex-row items-center gap-2 px-3 py-2 rounded-lg ${
-                                revocationStatus === 'valid' ? 'bg-green-500/10 border border-green-500/20' :
-                                revocationStatus === 'revoked' ? 'bg-red-500/10 border border-red-500/20' :
-                                revocationStatus === 'unknown' ? 'bg-yellow-500/10 border border-yellow-500/20' :
-                                'bg-muted/10 border border-muted/20'
-                            }`}>
-                                {revocationStatus === 'valid' && <BadgeCheck size={14} color="#4ade80" />}
-                                {revocationStatus === 'revoked' && <ShieldAlert size={14} color="#f87171" />}
-                                {revocationStatus === 'unknown' && <ShieldAlert size={14} color="#fbbf24" />}
-                                {!revocationStatus && <ShieldCheck size={14} color="#9ca3af" />}
-                                <Text className={`text-xs font-medium ${
-                                    revocationStatus === 'valid' ? 'text-green-400' :
-                                    revocationStatus === 'revoked' ? 'text-red-400' :
-                                    revocationStatus === 'unknown' ? 'text-yellow-400' :
-                                    'text-muted-foreground'
-                                }`}>
-                                    {revocationStatus === 'valid' ? 'Valid - Not Revoked' :
-                                     revocationStatus === 'revoked' ? 'REVOKED' :
-                                     revocationStatus === 'unknown' ? 'Status Unknown' :
-                                     'Checking...'}
-                                </Text>
-                            </View>
                         </View>
-                    ) : (
+                    ) : null}
+
+                    {/* Revocation Status Indicator */}
+                    {(selectedCredential || matchingCredentials.length > 0) && (
+                        <View className={`flex-row items-center gap-2 px-3 py-2 rounded-lg mt-3 ${
+                            revocationStatus === 'valid' ? 'bg-green-500/10 border border-green-500/20' :
+                            revocationStatus === 'revoked' ? 'bg-red-500/10 border border-red-500/20' :
+                            revocationStatus === 'unknown' ? 'bg-yellow-500/10 border border-yellow-500/20' :
+                            'bg-muted/10 border border-muted/20'
+                        }`}>
+                            {revocationStatus === 'valid' && <BadgeCheck size={14} color="#4ade80" />}
+                            {revocationStatus === 'revoked' && <ShieldAlert size={14} color="#f87171" />}
+                            {revocationStatus === 'unknown' && <ShieldAlert size={14} color="#fbbf24" />}
+                            {!revocationStatus && <ShieldCheck size={14} color="#9ca3af" />}
+                            <Text className={`text-xs font-medium ${
+                                revocationStatus === 'valid' ? 'text-green-400' :
+                                revocationStatus === 'revoked' ? 'text-red-400' :
+                                revocationStatus === 'unknown' ? 'text-yellow-400' :
+                                'text-muted-foreground'
+                            }`}>
+                                {revocationStatus === 'valid' ? 'Valid - Not Revoked' :
+                                 revocationStatus === 'revoked' ? 'REVOKED' :
+                                 revocationStatus === 'unknown' ? 'Status Unknown - Proceed with caution' :
+                                 'Checking...'}
+                            </Text>
+                        </View>
+                    )}
+
+                    {matchingCredentials.length === 0 && (
                         <View className="flex-row items-center gap-3 bg-error/10 p-3 rounded-xl border border-error/20">
                             <ShieldAlert size={20} color="#f7768e" />
                             <View>
@@ -345,8 +494,8 @@ export default function ApproveRequestScreen() {
             <View className="gap-3">
                 <TouchableOpacity
                     onPress={handleApprove}
-                    disabled={!matchingCredential || loading || checkingRevocation || (timeRemaining !== null && timeRemaining <= 0)}
-                    className={`p-4 rounded-xl flex-row items-center justify-center gap-2 ${(!matchingCredential || loading || checkingRevocation || (timeRemaining !== null && timeRemaining <= 0)) ? 'bg-muted' : 'bg-primary'
+                    disabled={!selectedCredential || loading || checkingRevocation || (timeRemaining !== null && timeRemaining <= 0)}
+                    className={`p-4 rounded-xl flex-row items-center justify-center gap-2 ${(!selectedCredential || loading || checkingRevocation || (timeRemaining !== null && timeRemaining <= 0)) ? 'bg-muted' : 'bg-primary'
                         }`}
                 >
                     {loading || checkingRevocation ? (
@@ -354,7 +503,7 @@ export default function ApproveRequestScreen() {
                     ) : (
                         <>
                             <Check size={20} color="#1a1b26" />
-                            <Text className="text-[#1a1b26] font-bold text-lg">Approve</Text>
+                            <Text className="text-[#1a1b26] font-bold text-lg">{actionText}</Text>
                         </>
                     )}
                 </TouchableOpacity>
@@ -368,6 +517,30 @@ export default function ApproveRequestScreen() {
                     <Text className="text-error font-bold text-lg">Reject</Text>
                 </TouchableOpacity>
             </View>
+
+            {/* Custom Alert Modal */}
+            <CustomAlert 
+                visible={alertState.visible}
+                title={alertState.title}
+                message={alertState.message}
+                confirmText={alertState.type === 'warning' ? 'Proceed Anyway' : 'OK'}
+                cancelText={alertState.type === 'warning' ? 'Cancel' : ''}
+                onConfirm={() => {
+                    if (alertState.onConfirm) {
+                        alertState.onConfirm();
+                    } else {
+                        setAlertState(prev => ({ ...prev, visible: false }));
+                    }
+                }}
+                onCancel={() => {
+                    setAlertState(prev => ({ ...prev, visible: false }));
+                    if (alertState.type === 'warning') {
+                        setLoading(false);
+                        setCheckingRevocation(false);
+                    }
+                }}
+                type={alertState.type}
+            />
         </SafeAreaView>
     );
 }

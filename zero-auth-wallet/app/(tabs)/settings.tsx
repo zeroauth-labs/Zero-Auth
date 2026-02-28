@@ -2,12 +2,13 @@ import { useWalletStore } from '@/store/wallet-store';
 import { useAuthStore } from '@/store/auth-store';
 import { useRouter } from 'expo-router';
 import { Info, RefreshCw, Smartphone, Trash2, Calendar } from 'lucide-react-native';
-import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Copy, ShieldCheck, ShieldX } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
+import CustomAlert from '@/components/CustomAlert';
 
 export default function SettingsScreen() {
     const did = useWalletStore((state) => state.did);
@@ -15,7 +16,19 @@ export default function SettingsScreen() {
     const [biometricStatus, setBiometricStatus] = useState<'loading' | 'available' | 'unavailable'>('loading');
     const resetWallet = useWalletStore((state) => state.resetWallet);
     const clearAllData = useAuthStore((state) => state.clearAllData);
+    const clearHistory = useAuthStore((state) => state.clearHistory);
     const router = useRouter();
+
+    // Alert state
+    const [alertState, setAlertState] = useState<{
+        visible: boolean;
+        type: 'error' | 'success' | 'warning' | 'info';
+        title: string;
+        message: string;
+        confirmText?: string;
+        cancelText?: string;
+        onConfirm?: () => void;
+    }>({ visible: false, type: 'info', title: '', message: '' });
 
     useEffect(() => {
         LocalAuthentication.hasHardwareAsync().then(hasHardware => {
@@ -24,28 +37,92 @@ export default function SettingsScreen() {
     }, []);
 
     const handleReset = () => {
-        Alert.alert(
-            "Reset Wallet",
-            "This will delete your identity, credentials, and all data. This action cannot be undone.",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete & Reset",
-                    style: "destructive",
-                    onPress: async () => {
-                        await resetWallet();  // Deletes private key from SecureStore
-                        await clearAllData();  // Clears credentials, sessions, salts
-                        router.replace('/onboarding');
-                    }
+        setAlertState({
+            visible: true,
+            type: 'warning',
+            title: 'Reset Wallet',
+            message: 'This will delete your identity, credentials, and all data. This action cannot be undone.',
+            confirmText: 'Delete & Reset',
+            cancelText: 'Cancel',
+            onConfirm: async () => {
+                setAlertState(prev => ({ ...prev, visible: false }));
+                await resetWallet();
+                await clearAllData();
+                router.replace('/onboarding');
+            }
+        });
+    };
+
+    const handleCopyDID = async () => {
+        await Clipboard.setStringAsync(did || '');
+        setAlertState({
+            visible: true,
+            type: 'success',
+            title: 'Copied',
+            message: 'DID copied to clipboard',
+        });
+    };
+
+    const handleCopyPublicKey = async () => {
+        await Clipboard.setStringAsync(publicKeyHex || '');
+        setAlertState({
+            visible: true,
+            type: 'success',
+            title: 'Copied',
+            message: 'Public Key copied to clipboard',
+        });
+    };
+
+    const handleViewSecretKey = async () => {
+        const hasHardware = await LocalAuthentication.hasHardwareAsync();
+        const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+        if (hasHardware && isEnrolled) {
+            const auth = await LocalAuthentication.authenticateAsync({
+                promptMessage: 'Authenticate to view Secret Key',
+            });
+            if (!auth.success) return;
+        }
+
+        const pk = await useWalletStore.getState().getRawPrivateKey();
+        if (pk) {
+            setAlertState({
+                visible: true,
+                type: 'info',
+                title: 'Secret Key',
+                message: pk,
+                confirmText: 'Copy',
+                onConfirm: async () => {
+                    await Clipboard.setStringAsync(pk);
+                    setAlertState(prev => ({ ...prev, visible: false }));
                 }
-            ]
-        );
+            });
+        } else {
+            setAlertState({
+                visible: true,
+                type: 'error',
+                title: 'Error',
+                message: 'Could not retrieve key',
+            });
+        }
+    };
+
+    const handleClearHistory = () => {
+        setAlertState({
+            visible: true,
+            type: 'warning',
+            title: 'Clear History',
+            message: 'Are you sure you want to clear your verification history?',
+            confirmText: 'Clear',
+            cancelText: 'Cancel',
+            onConfirm: () => {
+                setAlertState(prev => ({ ...prev, visible: false }));
+                clearHistory();
+            }
+        });
     };
 
     const handleReload = () => {
-        // Expo Go specific reload or just navigation reset
-        // Since full reload is hard inside React Comp without native modules sometimes, 
-        // we will simulate by navigating to splash or onboarding check
         router.replace('/');
     };
 
@@ -68,10 +145,7 @@ export default function SettingsScreen() {
                     <View className="mb-4">
                         <View className="flex-row justify-between items-end mb-1">
                             <Text className="text-xs font-bold text-muted-foreground uppercase">DID (Decentralized ID)</Text>
-                            <TouchableOpacity onPress={() => {
-                                Clipboard.setStringAsync(did || '');
-                                Alert.alert("Copied", "DID copied to clipboard");
-                            }}>
+                            <TouchableOpacity onPress={handleCopyDID}>
                                 <Copy size={12} color="#7aa2f7" />
                             </TouchableOpacity>
                         </View>
@@ -83,10 +157,7 @@ export default function SettingsScreen() {
                     <View>
                         <View className="flex-row justify-between items-end mb-1">
                             <Text className="text-xs font-bold text-muted-foreground uppercase">Public Key Fingerprint</Text>
-                            <TouchableOpacity onPress={() => {
-                                Clipboard.setStringAsync(publicKeyHex || '');
-                                Alert.alert("Copied", "Public Key copied to clipboard");
-                            }}>
+                            <TouchableOpacity onPress={handleCopyPublicKey}>
                                 <Copy size={12} color="#7aa2f7" />
                             </TouchableOpacity>
                         </View>
@@ -119,28 +190,7 @@ export default function SettingsScreen() {
                 <Text className="text-sm font-bold text-muted-foreground uppercase mb-3 px-1">Security</Text>
 
                 <TouchableOpacity
-                    onPress={async () => {
-                        const hasHardware = await LocalAuthentication.hasHardwareAsync();
-                        const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-
-                        if (hasHardware && isEnrolled) {
-                            const auth = await LocalAuthentication.authenticateAsync({
-                                promptMessage: 'Authenticate to view Secret Key',
-                            });
-                            if (!auth.success) return;
-                        }
-
-                        // Use Store to get private key (it's in SecureStore)
-                        const pk = await useWalletStore.getState().getRawPrivateKey();
-                        if (pk) {
-                            Alert.alert("Secret Key", pk, [
-                                { text: "Copy", onPress: () => Clipboard.setStringAsync(pk) },
-                                { text: "Close", style: "cancel" }
-                            ]);
-                        } else {
-                            Alert.alert("Error", "Could not retrieve key");
-                        }
-                    }}
+                    onPress={handleViewSecretKey}
                     className="bg-card p-4 rounded-xl border border-white/5 flex-row items-center gap-4 mb-6 active:bg-white/5"
                 >
                     <View className="w-10 h-10 bg-primary/10 rounded-full items-center justify-center">
@@ -169,12 +219,7 @@ export default function SettingsScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    onPress={() => {
-                        Alert.alert("Clear History", "Are you sure you want to clear your verification history?", [
-                            { text: "Cancel", style: "cancel" },
-                            { text: "Clear", style: "destructive", onPress: () => useAuthStore.getState().clearHistory() }
-                        ]);
-                    }}
+                    onPress={handleClearHistory}
                     className="bg-card p-4 rounded-xl border border-white/5 flex-row items-center gap-4 mb-3 active:bg-white/5"
                 >
                     <View className="w-10 h-10 bg-muted/10 rounded-full items-center justify-center">
@@ -207,8 +252,26 @@ export default function SettingsScreen() {
                     <Info size={14} color="#94a3b8" />
                     <Text className="text-slate-400 font-bold">Zero Auth Wallet</Text>
                 </View>
-                <Text className="text-slate-500 text-xs">Version 0.0.5 (Dev)</Text>
+                <Text className="text-slate-500 text-xs">Version 1.2.000</Text>
             </View>
+
+            {/* Custom Alert Modal */}
+            <CustomAlert 
+                visible={alertState.visible}
+                title={alertState.title}
+                message={alertState.message}
+                confirmText={alertState.confirmText || 'OK'}
+                cancelText={alertState.cancelText || ''}
+                onConfirm={() => {
+                    if (alertState.onConfirm) {
+                        alertState.onConfirm();
+                    } else {
+                        setAlertState(prev => ({ ...prev, visible: false }));
+                    }
+                }}
+                onCancel={() => setAlertState(prev => ({ ...prev, visible: false }))}
+                type={alertState.type}
+            />
         </SafeAreaView>
     );
 }

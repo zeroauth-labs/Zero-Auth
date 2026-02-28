@@ -5,6 +5,12 @@ export type ZKProofPayload = {
     protocol: string;
     curve: string;
     publicSignals: string[];
+    // Optional fields for non-ZK proofs (like Trial credentials)
+    credential_type?: string;
+    credential_id?: string;
+    issuedAt?: number;
+    expiresAt?: number;
+    attributes?: Record<string, any>;
 };
 
 export type ZKAssetMap = {

@@ -1,4 +1,8 @@
 import { Credential } from '@/store/auth-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Cache duration: 1 hour
+const REVOCATION_CACHE_DURATION = 60 * 60 * 1000;
 
 /**
  * Revocation status check result
@@ -10,6 +14,11 @@ export interface RevocationCheckResult {
   status: RevocationStatus;
   checkedAt?: number;
   message?: string;
+}
+
+interface CachedRevocationStatus {
+  status: RevocationStatus;
+  cachedAt: number;
 }
 
 /**
@@ -35,6 +44,18 @@ export async function checkRevocationStatus(
     };
   }
   
+  // Check cache first
+  const cached = await getCachedRevocationStatus(credential.id);
+  if (cached) {
+    console.log(`[Revocation] Using cached status for ${credential.id}: ${cached.status}`);
+    return {
+      isRevoked: cached.status === 'revoked',
+      status: cached.status,
+      checkedAt: cached.cachedAt,
+      message: 'Using cached revocation status'
+    };
+  }
+  
   // TODO: In Phase 2/3, integrate with revocation registry
   // For now, return valid if we can't check
   // In production, this would make an API call to the revocation registry
@@ -46,11 +67,16 @@ export async function checkRevocationStatus(
     // const data = await response.json();
     // return { isRevoked: data.revoked, status: data.revoked ? 'revoked' : 'valid' };
     
-    return { 
+    const result = { 
       isRevoked: false, 
-      status: 'valid',
+      status: 'valid' as RevocationStatus,
       checkedAt: Date.now()
     };
+    
+    // Cache the result
+    await cacheRevocationStatus(credential.id, result.status);
+    
+    return result;
   } catch (error) {
     console.warn('Revocation check failed:', error);
     return { 
@@ -64,13 +90,28 @@ export async function checkRevocationStatus(
 /**
  * Gets cached revocation status (for offline mode)
  * @param credentialId - The credential ID to check
- * @returns Cached revocation status
+ * @returns Cached revocation status or null if expired/not found
  */
-export function getCachedRevocationStatus(credentialId: string): RevocationStatus {
-  // Check AsyncStorage for cached status
-  // In MVP, return unknown as no caching implemented
-  // TODO: Implement AsyncStorage caching in future phase
-  return 'unknown';
+export async function getCachedRevocationStatus(credentialId: string): Promise<CachedRevocationStatus | null> {
+  try {
+    const cached = await AsyncStorage.getItem(`revocation_${credentialId}`);
+    if (!cached) return null;
+    
+    const parsed: CachedRevocationStatus = JSON.parse(cached);
+    const now = Date.now();
+    
+    // Check if cache is still valid
+    if (now - parsed.cachedAt > REVOCATION_CACHE_DURATION) {
+      // Cache expired - remove it
+      await AsyncStorage.removeItem(`revocation_${credentialId}`);
+      return null;
+    }
+    
+    return parsed;
+  } catch (error) {
+    console.warn('[Revocation] Failed to get cached status:', error);
+    return null;
+  }
 }
 
 /**
@@ -82,11 +123,17 @@ export async function cacheRevocationStatus(
   credentialId: string,
   status: RevocationStatus
 ): Promise<void> {
-  // TODO: Implement AsyncStorage caching
-  // Example:
-  // await AsyncStorage.setItem(
-  //   `revocation_${credentialId}`,
-  //   JSON.stringify({ status, cachedAt: Date.now() })
-  // );
-  console.log(`[Revocation] Cached status for ${credentialId}: ${status}`);
+  try {
+    const cacheData: CachedRevocationStatus = {
+      status,
+      cachedAt: Date.now()
+    };
+    await AsyncStorage.setItem(
+      `revocation_${credentialId}`,
+      JSON.stringify(cacheData)
+    );
+    console.log(`[Revocation] Cached status for ${credentialId}: ${status}`);
+  } catch (error) {
+    console.warn('[Revocation] Failed to cache status:', error);
+  }
 }

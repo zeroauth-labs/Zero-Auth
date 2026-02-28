@@ -1,6 +1,7 @@
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
+import { generateSecureId } from './utils';
 
 export type QueuedAction = {
   id: string;
@@ -26,7 +27,7 @@ export async function queueAction(action: Omit<QueuedAction, 'id' | 'timestamp'>
   const existing = await getQueuedActions();
   const newAction: QueuedAction = {
     ...action,
-    id: Math.random().toString(36).substring(7),
+    id: generateSecureId(),
     timestamp: Date.now(),
   };
   await AsyncStorage.setItem(QUEUED_ACTIONS_KEY, JSON.stringify([...existing, newAction]));

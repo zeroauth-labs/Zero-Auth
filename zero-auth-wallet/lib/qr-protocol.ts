@@ -4,6 +4,8 @@ export interface VerifierInfo {
     callback: string; // URL to post proof to
 }
 
+export type UseCaseType = 'LOGIN' | 'VERIFICATION' | 'TRIAL_LICENSE';
+
 export interface VerificationRequest {
     v: number; // Protocol version, e.g., 1
     action: 'verify';
@@ -13,6 +15,7 @@ export interface VerificationRequest {
     required_claims: string[];
     credential_type: string;
     expires_at: number; // Unix timestamp
+    use_case?: UseCaseType; // Optional: LOGIN, VERIFICATION, TRIAL_LICENSE
 }
 
 /**
@@ -35,7 +38,8 @@ export function parseVerificationQR(data: string): VerificationRequest | null {
             !payload.verifier.did ||
             !payload.verifier.callback || // Now required inside verifier
             !payload.required_claims ||
-            !Array.isArray(payload.required_claims)
+            !Array.isArray(payload.required_claims) ||
+            (payload.use_case && !['LOGIN', 'VERIFICATION', 'TRIAL_LICENSE'].includes(payload.use_case))
         ) {
             console.warn("Invalid QR structure:", payload);
             return null;
