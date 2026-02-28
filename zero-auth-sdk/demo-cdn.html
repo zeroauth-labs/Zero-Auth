@@ -11,16 +11,23 @@
       background: #0f0f14;
       color: #fff;
       min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      padding: 40px 20px;
     }
     .container {
-      text-align: center;
-      padding: 40px;
+      max-width: 600px;
+      margin: 0 auto;
     }
-    h1 { margin-bottom: 8px; }
-    p { color: #888; margin-bottom: 32px; }
+    h1 { 
+      margin-bottom: 8px; 
+      font-size: 28px;
+    }
+    h2 {
+      font-size: 18px;
+      margin: 24px 0 12px;
+      color: #7aa2f7;
+    }
+    p { color: #888; margin-bottom: 24px; }
+    
     .demo-section {
       background: #1a1b26;
       padding: 24px;
@@ -34,53 +41,145 @@
       letter-spacing: 1px;
       margin-bottom: 16px;
     }
+    
+    pre {
+      background: #0f0f14;
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    code { color: #bb9af7; }
+    .comment { color: #565f89; }
+    .string { color: #9ece6a; }
+    .keyword { color: #7aa2f7; }
+    
+    .result {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 13px;
+      display: none;
+    }
+    .result.show { display: block; }
+    .result.success { background: #1a3a2a; color: #4ade80; }
+    .result.error { background: #3a1a1a; color: #f7768e; }
+    
+    /* ZeroAuth Button Styles */
+    .zero-auth-button {
+      background: #7aa2f7;
+      color: #1a1b26;
+      padding: 14px 28px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 16px;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+    .zero-auth-button:hover { opacity: 0.9; }
+    .zero-auth-button:active { transform: scale(0.98); }
+    .zero-auth-button:disabled { opacity: 0.5; cursor: not-allowed; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>ZeroAuth SDK</h1>
-    <p>Passwordless verification for any website</p>
+    <p>Passwordless ZK credential verification</p>
     
+    <!-- Demo 1: Simple Button -->
     <div class="demo-section">
-      <div class="label">Demo: Built-in Button + Modal</div>
-      <!-- ZeroAuth Button will be rendered here -->
+      <div class="label">Demo 1: React Button Component</div>
+      <div id="react-demo"></div>
+      <div id="result1" class="result"></div>
+    </div>
+    
+    <!-- Demo 2: Vanilla JS -->
+    <div class="demo-section">
+      <div class="label">Demo 2: Vanilla JavaScript</div>
+      <button id="vanilla-btn" class="zero-auth-button">Sign in with ZeroAuth (Vanilla)</button>
+      <div id="result2" class="result"></div>
+    </div>
+    
+    <!-- Code Examples -->
+    <h2>Quick Start</h2>
+    <div class="demo-section">
+      <div class="label">1. Configure (before importing)</div>
+      <pre><code><span class="comment">// Configure ZeroAuth globally</span>
+<span class="keyword">window</span>.__ZERO_AUTH_CONFIG__ = {
+  <span class="string">relayUrl</span>: <span class="string">'https://your-relay-server.com'</span>,
+  <span class="string">apiKey</span>: <span class="string">'your-api-key'</span>,  <span class="comment">// Optional</span>
+  <span class="string">verifierName</span>: <span class="string">'Your App Name'</span>,
+  <span class="string">timeout</span>: <span class="string">60</span>
+};</code></pre>
     </div>
     
     <div class="demo-section">
-      <div class="label">Code Example</div>
-      <pre style="text-align: left; background: #0f0f14; padding: 16px; border-radius: 8px; overflow: auto; font-size: 12px;">
-// 1. Configure (before importing)
-window.ZeroAuthConfig = {
-  relayUrl: 'https://zeroauth-relay.onrender.com'
-};
+      <div class="label">2. React Usage</div>
+      <pre><code><span class="comment">// Using the Button Component</span>
+<span class="keyword">import</span> { ZeroAuthButton } <span class="keyword">from</span> <span class="string">'@zero-auth/sdk'</span>;
 
-// 2. Add button
-import { ZeroAuthButton } from 'https://unpkg.com/@zero-auth/sdk/dist/zero-auth-sdk.umd.js';
+<span class="keyword">&lt;ZeroAuthButton</span>
+  request={{ credentialType: <span class="string">'Age Verification'</span> }}
+  onSuccess={(result) => <span class="keyword">console</span>.log(result)}
+  onError={(error) => <span class="keyword">console</span>.error(error)}
+/&gt;</code></pre>
+    </div>
+    
+    <div class="demo-section">
+      <div class="label">3. Vanilla JavaScript Usage</div>
+      <pre><code><span class="comment">// Using the Class API</span>
+<span class="keyword">import</span> { ZeroAuth } <span class="keyword">from</span> <span class="string">'@zero-auth/sdk'</span>;
 
-document.querySelector('#app').innerHTML = ZeroAuthButton({
-  text: 'Sign in with ZeroAuth',
-  credentialType: 'Age Verification',
-  claims: ['birth_year'],
-  onSuccess: (result) => console.log('Verified!', result),
-  onError: (error) => console.error('Error:', error)
+<span class="keyword">const</span> zeroAuth = <span class="keyword">new</span> ZeroAuth({
+  relayUrl: <span class="string">'https://your-relay.com'</span>
 });
-      </pre>
+
+<span class="keyword">const</span> result = <span class="keyword">await</span> zeroAuth.verify({
+  credentialType: <span class="string">'Age Verification'</span>,
+  claims: [<span class="string">'birth_year'</span>]
+});
+
+<span class="keyword">if</span> (result.success) {
+  <span class="keyword">console</span>.log(<span class="string">'Verified!'</span>, result.claims);
+}</code></pre>
+    </div>
+    
+    <div class="demo-section">
+      <div class="label">4. Generate QR Code</div>
+      <pre><code><span class="comment">// Generate QR as base64 image</span>
+<span class="keyword">const</span> qrDataUrl = <span class="keyword">await</span> zeroAuth.generateQRBase64(
+  qrPayload, 
+  { width: <span class="string">256</span>, color: <span class="string">'#000000'</span> }
+);
+
+<span class="comment">// Or generate deep link for wallet</span>
+<span class="keyword">const</span> deepLink = zeroAuth.generateDeeplink(sessionId);
+<span class="comment">// Result: zeroauth://verify?session=abc123</span></code></pre>
     </div>
   </div>
 
   <!-- ZeroAuth SDK -->
-  <script src="https://unpkg.com/@zero-auth/sdk@1.0.0/dist/zero-auth-sdk.umd.js"></script>
-  
-  <script>
-    // Configure relay URL
-    window.ZeroAuthConfig = {
+  <script type="module">
+    import { ZeroAuth, ZeroAuthButton, ZeroAuthProvider, validateConfig, validateQRPayload } from './dist/index.esm.js';
+    
+    // Configure
+    window.ZeroAuth = ZeroAuth;
+    window.ZeroAuthButton = ZeroAuthButton;
+    window.ZeroAuthProvider = ZeroAuthProvider;
+    window.validateConfig = validateConfig;
+    window.validateQRPayload = validateQRPayload;
+    
+    // Set config
+    window.__ZERO_AUTH_CONFIG__ = {
       relayUrl: 'https://zeroauth-relay.onrender.com',
-      verifierName: 'Demo Website'
+      verifierName: 'Demo Website',
+      timeout: 60
     };
     
-    // For demo, we'll use React to render the button
-    // In production, you can just use the button directly
-    console.log('ZeroAuth SDK loaded:', typeof ZeroAuthButton);
+    console.log('ZeroAuth SDK loaded');
   </script>
 </body>
 </html>
