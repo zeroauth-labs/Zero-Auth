@@ -2,8 +2,9 @@ import { zustandStorage } from '@/lib/storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import * as SecureStore from 'expo-secure-store';
+import { generateSecureId, generateSecureSalt, hashPin, verifyPin as verifyPinHash } from '@/lib/utils';
 
-export type ServiceType = 'Age Verification' | 'Student ID' | 'Email Alternative' | 'Trial access' | 'Trial';
+export type ServiceType = 'Age Verification' | 'Student ID' | 'Email Alternative' | 'Trial';
 
 export interface Session {
     id: string; // Local wallet ID
@@ -61,6 +62,12 @@ export interface AuthState {
     seedDemoData: () => Promise<void>;
     biometricsEnabled: boolean;
     toggleBiometrics: () => void;
+    
+    // PIN management
+    pinHash: string | null;
+    setPin: (pin: string) => Promise<void>;
+    verifyPin: (pin: string) => Promise<boolean>;
+    clearPin: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -82,7 +89,7 @@ export const useAuthStore = create<AuthState>()(
                 sessions: [
                     {
                         ...session,
-                        id: Math.random().toString(36).substring(7),
+                        id: generateSecureId(),
                         startTime: Date.now(),
                         status: 'active'
                     },
@@ -111,7 +118,7 @@ export const useAuthStore = create<AuthState>()(
                     history: [{ ...sessionToMove, status: 'revoked' }, ...state.history],
                     notifications: [
                         {
-                            id: Math.random().toString(36),
+                            id: generateSecureId(),
                             title: 'Session Ended',
                             message: `Access to ${sessionToMove.serviceName} has been revoked.`,
                             timestamp: Date.now(),
@@ -124,9 +131,18 @@ export const useAuthStore = create<AuthState>()(
 
             addCredential: (credential) => {
                 const state = get();
-                const existing = state.credentials.find(c => c.type === credential.type);
+                
+                // Check for duplicate credential by ID
+                const existingById = state.credentials.find(c => c.id === credential.id);
+                if (existingById) {
+                    console.warn(`Credential with ID ${credential.id} already exists`);
+                    return; // Don't add duplicate
+                }
+                
+                // Check for existing credential of same type
+                const existingByType = state.credentials.find(c => c.type === credential.type);
 
-                if (existing) {
+                if (existingByType) {
                     set((state) => ({
                         credentials: [
                             ...state.credentials.filter(c => c.type !== credential.type),
@@ -134,7 +150,7 @@ export const useAuthStore = create<AuthState>()(
                         ],
                         notifications: [
                             {
-                                id: Math.random().toString(36),
+                                id: generateSecureId(),
                                 title: 'Credential Updated',
                                 message: `Your ${credential.type} has been updated.`,
                                 timestamp: Date.now(),
@@ -157,7 +173,7 @@ export const useAuthStore = create<AuthState>()(
             addNotification: (title, message) => set((state) => ({
                 notifications: [
                     {
-                        id: Math.random().toString(36),
+                        id: generateSecureId(),
                         title,
                         message,
                         timestamp: Date.now(),
@@ -233,11 +249,9 @@ export const useAuthStore = create<AuthState>()(
                 ];
 
                 // For each demo credential, we need a salt
-                // NOTE: SecureStore is typically a React Native/Expo module.
-                // If this is a web environment, you'll need to replace this with a web-compatible storage.
+                // Using secure salt generation
                 for (const cred of demoCredentials) {
-                    const salt = Math.floor(Math.random() * 1000000).toString();
-                    // Use ID for consistency with verify.tsx/approve-request.tsx
+                    const salt = generateSecureSalt();
                     await SecureStore.setItemAsync(`salt_${cred.id}`, salt);
                 }
 
@@ -245,6 +259,27 @@ export const useAuthStore = create<AuthState>()(
             },
 
             toggleBiometrics: () => set((state) => ({ biometricsEnabled: !state.biometricsEnabled })),
+            
+            // PIN management
+            pinHash: null,
+            
+            setPin: async (pin: string) => {
+                // Hash PIN with unique salt using SHA-256
+                const hashedPin = await hashPin(pin);
+                await SecureStore.setItemAsync('user_pin_hash', hashedPin);
+                set({ pinHash: hashedPin });
+            },
+            
+            verifyPin: async (pin: string): Promise<boolean> => {
+                const storedValue = await SecureStore.getItemAsync('user_pin_hash');
+                if (!storedValue) return false;
+                return await verifyPinHash(pin, storedValue);
+            },
+            
+            clearPin: async () => {
+                await SecureStore.deleteItemAsync('user_pin_hash');
+                set({ pinHash: null });
+            },
         }),
         {
             name: 'zero-auth-store',
@@ -256,6 +291,7 @@ export const useAuthStore = create<AuthState>()(
                 credentials: state.credentials,
                 notifications: state.notifications,
                 biometricsEnabled: state.biometricsEnabled,
+                pinHash: state.pinHash,
             }),
             onRehydrateStorage: () => (state) => {
                 state?.setHasHydrated(true);

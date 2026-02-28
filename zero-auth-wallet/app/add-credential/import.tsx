@@ -4,11 +4,12 @@ import { useAuthStore } from '@/store/auth-store';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, ClipboardList, Info } from 'lucide-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import * as SecureStore from 'expo-secure-store';
-import { getRandomValues } from 'expo-crypto';
+import { generateSecureId, generateSecureSalt } from '@/lib/utils';
+import CustomAlert from '@/components/CustomAlert';
 
 export default function ImportCredentialScreen() {
     const router = useRouter();
@@ -16,6 +17,13 @@ export default function ImportCredentialScreen() {
     const addCredential = useAuthStore((state) => state.addCredential);
     const [jsonInput, setJsonInput] = useState('');
     const [loading, setLoading] = useState(false);
+    const [alertState, setAlertState] = useState<{
+        visible: boolean;
+        type: 'error' | 'success' | 'warning' | 'info';
+        title: string;
+        message: string;
+        onConfirm?: () => void;
+    }>({ visible: false, type: 'info', title: '', message: '' });
 
     const handlePaste = async () => {
         const text = await Clipboard.getStringAsync();
@@ -33,10 +41,8 @@ export default function ImportCredentialScreen() {
             }
 
             // Implementation of the hashing/commitment logic (same as verify.tsx)
-            // 1. Generate Salt
-            const saltBytes = new Uint8Array(32);
-            getRandomValues(saltBytes);
-            const salt = Buffer.from(saltBytes).toString('hex');
+            // 1. Generate Salt using secure random
+            const salt = generateSecureSalt();
 
             // 2. Compute Commitment (assuming birth_year for now as that's what our circuit expects)
             const birthYear = data.attributes.birth_year || data.attributes.year_of_birth;
@@ -47,7 +53,7 @@ export default function ImportCredentialScreen() {
             const commitment = await commitAttribute(zkEngine, Number(birthYear), salt);
 
             // 3. Persist
-            const credentialId = Math.random().toString(36).substring(7);
+            const credentialId = generateSecureId();
             await SecureStore.setItemAsync(`salt_${credentialId}`, salt);
 
             addCredential({
@@ -62,12 +68,24 @@ export default function ImportCredentialScreen() {
                 verified: true
             });
 
-            Alert.alert("Success", "Credential imported and secured.", [
-                { text: "OK", onPress: () => router.dismissAll() }
-            ]);
+            setAlertState({
+                visible: true,
+                type: 'success',
+                title: 'Success',
+                message: 'Credential imported and secured.',
+                onConfirm: () => {
+                    setAlertState(prev => ({ ...prev, visible: false }));
+                    router.dismissAll();
+                }
+            });
 
         } catch (e: any) {
-            Alert.alert("Import Error", e.message);
+            setAlertState({
+                visible: true,
+                type: 'error',
+                title: 'Import Error',
+                message: e.message,
+            });
         } finally {
             setLoading(false);
         }
@@ -124,6 +142,24 @@ export default function ImportCredentialScreen() {
                     </TouchableOpacity>
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            {/* Custom Alert Modal */}
+            <CustomAlert 
+                visible={alertState.visible}
+                title={alertState.title}
+                message={alertState.message}
+                confirmText="OK"
+                cancelText=""
+                onConfirm={() => {
+                    if (alertState.onConfirm) {
+                        alertState.onConfirm();
+                    } else {
+                        setAlertState(prev => ({ ...prev, visible: false }));
+                    }
+                }}
+                onCancel={() => setAlertState(prev => ({ ...prev, visible: false }))}
+                type={alertState.type}
+            />
         </SafeAreaView>
     );
 }

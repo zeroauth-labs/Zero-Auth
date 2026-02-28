@@ -1,67 +1,125 @@
 # Zero Auth Wallet 🛡️
-[![V1 Stable](https://img.shields.io/badge/Status-V1_Stable-success.svg)](https://github.com/zeroauth-labs)
+
+[![Version](https://img.shields.io/badge/Version-1.2.000-blue.svg)]()
+[![Status](https://img.shields.io/badge/Status-Stable-success.svg)](https://github.com/zeroauth-labs)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Zero Auth** is a privacy-first Decentralized Identity (DID) wallet. It allows users to store credentials and verify attributes (like "Age > 18") using **Zero-Knowledge Proofs (ZKP)**—proving a statement is true without revealing the underlying data.
+**Zero Auth** is a privacy-first Decentralized Identity (DID) wallet built with Expo/React Native. It allows users to store credentials and verify attributes (like "Age > 18") using **Zero-Knowledge Proofs (ZKP)**—proving a statement is true without revealing the underlying data.
 
 ---
 
-## 🏗️ Technical Architecture
+## Core Features
 
-### 1. Device-Bound Identity
-Identity in Zero Auth is anchored to the hardware. 
-- **Keys**: Every wallet generates a unique **Ed25519** keypair on-device.
-- **Security**: The private key is stored in the device's hardware-backed SecureStore (iOS Keychain / Android Keystore) and never leaves the app.
-- **DID**: We follow the W3C decentralized identifier standard using the `did:key` method (e.g., `did:key:z6Mkq...`).
+### 🔐 Device-Bound Identity
+- **Ed25519 Keypair**: Every wallet generates a unique cryptographic keypair on-device
+- **Hardware Security**: Private keys are stored in the device's hardware-backed SecureStore (iOS Keychain / Android Keystore)
+- **W3C DID**: Follows the `did:key` standard (e.g., `did:key:z6Mk...`)
+- **Key Recovery**: Export/backup secret recovery key with biometric authentication
 
-### 2. Privacy via Zero-Knowledge
-The wallet implements private commitments for user attributes.
-- **Poseidon Hashing**: Attributes are hashed using the Poseidon algorithm, which is optimized for ZK circuits.
-- **Proof Generation**: Logic for generating Groth16 proofs using `SnarkJS` is integrated, allowing the user to respond to verification requests (challenges) without exposing their raw attributes (PII).
+### 🪪 Credential Management
+- **Multiple Credential Types**: Support for Age Verification, Student ID, Trial credentials
+- **Secure Storage**: Credentials stored with cryptographic salts in SecureStore
+- **Credential Selection**: When multiple credentials match a request, users can choose which to present
+- **Expiry Handling**: Automatic validation of credential expiration before proof generation
 
----
+### 🔒 Zero-Knowledge Proofs
+- **Poseidon Hashing**: Privacy-preserving commitments for user attributes
+- **Groth16 Proofs**: Full ZK proof generation via SnarkJS
+- **ZK Bridge**: WebView-based ZK engine for mobile optimization
+- **Circuit Caching**: Efficient in-memory caching of circuit files (max 5 circuits)
+- **Proof Timeout**: 90-second timeout protection for proof generation
 
-## 🚀 Roadmap
+### 🛡️ Security Features
+- **Biometric Authentication**: FaceID/Fingerprint required before proof generation
+- **PIN Fallback**: Secure PIN as backup when biometrics unavailable
+- **Revocation Checking**: Validates credential status before each proof
+- **Session Management**: Active session tracking with remote revocation support
 
-### ✅ Phase 1: Foundation (Stable)
-- On-device key generation (Ed25519) and persistence.
-- Persistent credential storage and session history.
-- QR Protocol parsing for verification requests.
-- **Local ZK Engine**: Real-time Groth16 proof generation via SnarkJS/Poseidon.
-- **Biometric Gating**: FaceID/Fingerprint enforcement for proof generation.
+### 📱 User Experience
+- **QR Verification**: Scan QR codes to receive verification requests
+- **Deep Linking**: Support for `zeroauth://` URL scheme
+- **Dynamic UI**: Context-aware messages based on use case (LOGIN, VERIFICATION, TRIAL_LICENSE)
+- **Offline Support**: Queue actions when offline, sync when back online
+- **Custom Alerts**: Themed modal alerts (success/error/warning/info)
 
-### 🟡 Phase 2: Ecosystem (In Progress)
-- **[Relay System](https://github.com/zeroauth-labs/zero-auth-relay)**: A stateless hub for routing proofs between apps and the wallet.
-- **[JS SDK](https://github.com/zeroauth-labs/zero-auth-sdk)**: Drop-in library for web developers to integrate Zero Auth.
-- **Universal Scanning**: Inter-app deep linking Support.
-
-### 🔴 Phase 3: Production Hardening
-- **Native ZK Engine**: Migration to a C++/Rust native engine for ultra-fast proof generation on mobile.
-- **Cloud Recovery**: Encrypted backup of credential metadata.
-
----
-
-## 🛠️ Tech Stack
-- **Framework**: [Expo](https://expo.dev/) (Managed Workflow)
-- **State**: [Zustand](https://github.com/pmndrs/zustand) + Persistence
-- **Crypto**: `@noble/curves`, `expo-crypto`, `expo-secure-store`
-- **UI**: Tailwind CSS via [NativeWind v4](https://www.nativewind.dev/)
-- **Theme**: Tokyo Night (Custom Design System)
+### 💾 Data Management
+- **Encrypted Storage**: Zustand persist with AsyncStorage
+- **Storage Quota**: 5MB limit with usage tracking
+- **Backup/Export**: Export credentials (without salts) for backup
+- **History Tracking**: Complete audit trail of verifications
 
 ---
 
-## 🧑‍💻 For Developers
-If you are building the **Relay** or **SDK**, please refer to the integration specifications in the respective repositories:
-- **Relay Developers**: See the [Session lifecycle and Proof Callback spec](https://github.com/zeroauth-labs/zero-auth-relay).
-- **Frontend/SDK Developers**: See the [QR Schema and Polling spec](https://github.com/zeroauth-labs/zero-auth-sdk).
+## Technical Architecture
+
+### Cryptography
+| Component | Algorithm | Purpose |
+|-----------|-----------|---------|
+| Identity Keys | Ed25519 | Device-bound keypair |
+| Attribute Hashing | Poseidon | ZK-friendly commitments |
+| Proofs | Groth16 (SnarkJS) | Zero-knowledge verification |
+| PIN Hashing | SHA-256 | Secure PIN storage |
+
+### Supported Credential Types
+- **Age Verification**: Proves user is 18+ without revealing birth year
+- **Student ID**: Proves student status without revealing personal details
+- **Trial**: Simple trial license activation
 
 ---
 
-## ⚡ Quick Start
-1. **Install Dependencies**: `npm install`
-2. **Start Development**: `npx expo start`
-3. **Run on Device**: Use the [Expo Go](https://expo.dev/expo-go) app to scan the terminal QR code.
+## Tech Stack
+
+| Category | Technology |
+|----------|------------|
+| Framework | Expo (Managed Workflow) |
+| Language | TypeScript |
+| State | Zustand + Persistence |
+| Crypto | @noble/curves, expo-crypto, expo-secure-store |
+| UI | Tailwind CSS via NativeWind v4 |
+| Theme | Tokyo Night (Custom Design System) |
 
 ---
+
+## Project Structure
+
+```
+zero-auth-wallet/
+├── app/                    # Expo Router screens
+│   ├── (tabs)/            # Tab navigation screens
+│   └── add-credential/    # Credential issuance flow
+├── components/             # Reusable UI components
+├── constants/             # Theme and configuration
+├── hooks/                 # Custom React hooks
+├── lib/                   # Core business logic
+│   ├── wallet.ts         # Identity management
+│   ├── proof.ts          # ZK proof generation
+│   ├── hashing.ts        # Poseidon hashing
+│   ├── qr-protocol.ts    # QR parsing/validation
+│   ├── revocation.ts     # Credential revocation
+│   ├── offline.ts        # Offline queue management
+│   └── storage.ts        # Persistence utilities
+├── store/                 # Zustand state stores
+└── circuits/              # ZK circuit files (Circom)
+```
+
+---
+
+## Versioning
+
+This project follows **Semantic Versioning**:
+- **Major (1.x.000)**: Breaking changes, major features
+- **Minor (x.2.000)**: Medium updates, new features
+- **Patch (x.x.001)**: Bug fixes, small improvements
+
+---
+
+## Links
+
+- [Website](https://zeroauth.dev)
+- [GitHub](https://github.com/zeroauth-labs)
+- [Relay Server](https://github.com/zeroauth-labs/zero-auth-relay)
+- [JS SDK](https://github.com/zeroauth-labs/zero-auth-sdk)
+
+---
+
 Built with ❤️ by [Zero Auth Labs](https://github.com/zeroauth-labs)
-

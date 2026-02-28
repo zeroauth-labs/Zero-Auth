@@ -3,13 +3,20 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { ScanLine, X } from 'lucide-react-native';
 import { useState } from 'react';
-import { Alert, Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import CustomAlert from '@/components/CustomAlert';
 
 export default function ScannerScreen() {
     const router = useRouter();
     const [permission, requestPermission] = useCameraPermissions();
     const [scanned, setScanned] = useState(false);
+    const [alertState, setAlertState] = useState<{
+        visible: boolean;
+        type: 'error' | 'success' | 'warning' | 'info';
+        title: string;
+        message: string;
+    }>({ visible: false, type: 'info', title: '', message: '' });
 
     const handleBarCodeScanned = ({ data }: { data: string }) => {
         setScanned(true);
@@ -23,11 +30,12 @@ export default function ScannerScreen() {
             // Reset scan state after a delay or when coming back
             setTimeout(() => setScanned(false), 2000);
         } else {
-            Alert.alert(
-                "Invalid QR Code",
-                "This code is not a valid Zero Auth verification request.",
-                [{ text: "OK", onPress: () => setScanned(false) }]
-            );
+            setAlertState({
+                visible: true,
+                type: 'error',
+                title: 'Invalid QR Code',
+                message: 'This code is not a valid Zero Auth verification request.',
+            });
         }
     };
 
@@ -93,6 +101,21 @@ export default function ScannerScreen() {
                     </View>
                 </SafeAreaView>
             </CameraView>
+
+            {/* Custom Alert Modal */}
+            <CustomAlert 
+                visible={alertState.visible}
+                title={alertState.title}
+                message={alertState.message}
+                confirmText="OK"
+                cancelText=""
+                onConfirm={() => {
+                    setAlertState(prev => ({ ...prev, visible: false }));
+                    setScanned(false);
+                }}
+                onCancel={() => setAlertState(prev => ({ ...prev, visible: false }))}
+                type={alertState.type}
+            />
         </View>
     );
 }

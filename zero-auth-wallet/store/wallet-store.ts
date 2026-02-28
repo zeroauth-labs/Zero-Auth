@@ -1,6 +1,9 @@
 import { generateAndStoreIdentity, getWalletIdentity, isWalletInitialized, purgeWallet } from '@/lib/wallet';
 import { bytesToHex } from '@noble/hashes/utils';
 import { create } from 'zustand';
+import * as SecureStore from 'expo-secure-store';
+
+const PRIVATE_KEY_ALIAS = 'zero_auth_sk';
 
 interface WalletState {
     isInitialized: boolean;
@@ -65,7 +68,7 @@ export const useWalletStore = create<WalletState>((set) => ({
         set({ isInitialized: false, did: null, publicKeyHex: null });
     },
     getRawPrivateKey: async () => {
-        const pk = await require('expo-secure-store').getItemAsync('privateKey');
+        const pk = await SecureStore.getItemAsync(PRIVATE_KEY_ALIAS);
         return pk;
     }
 }));

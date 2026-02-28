@@ -95,8 +95,8 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Demo Seed Button (Production UX refinement) */}
-        {useAuthStore.getState().credentials.length === 0 && (
+        {/* Demo Seed Button - Only shown in development mode */}
+        {__DEV__ && useAuthStore.getState().credentials.length === 0 && (
           <TouchableOpacity
             onPress={() => useAuthStore.getState().seedDemoData()}
             className="bg-success/10 border border-success/20 p-5 rounded-3xl items-center justify-center mb-8"

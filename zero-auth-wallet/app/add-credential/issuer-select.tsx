@@ -1,8 +1,10 @@
 import { useAuthStore } from '@/store/auth-store';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, ChevronRight } from 'lucide-react-native';
-import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useState } from 'react';
+import CustomAlert from '@/components/CustomAlert';
 
 const ISSUERS = {
     university: [
@@ -23,17 +25,16 @@ export default function IssuerSelectScreen() {
     const router = useRouter();
     const { category } = useLocalSearchParams<{ category: string }>();
     const credentials = useAuthStore((state) => state.credentials);
+    const [alertState, setAlertState] = useState<{
+        visible: boolean;
+    }>({ visible: false });
 
     // LOGIC: Check if user already has a University ID
     const hasUniversityId = credentials.some(c => c.type === 'Student ID');
 
     const handleSelect = (issuer: any) => {
         if (category === 'university' && hasUniversityId) {
-            Alert.alert(
-                "Limit Reached",
-                "You can only hold one active University ID. Please revoke your existing ID to add a new one.",
-                [{ text: "OK" }]
-            );
+            setAlertState({ visible: true });
             return;
         }
 
@@ -66,6 +67,18 @@ export default function IssuerSelectScreen() {
                     </TouchableOpacity>
                 ))}
             </ScrollView>
+
+            {/* Custom Alert Modal */}
+            <CustomAlert 
+                visible={alertState.visible}
+                title="Limit Reached"
+                message="You can only hold one active University ID. Please revoke your existing ID to add a new one."
+                confirmText="OK"
+                cancelText=""
+                onConfirm={() => setAlertState({ visible: false })}
+                onCancel={() => setAlertState({ visible: false })}
+                type="warning"
+            />
         </SafeAreaView>
     );
 }
