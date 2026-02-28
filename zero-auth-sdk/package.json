@@ -1,7 +1,7 @@
 {
   "name": "@zero-auth/sdk",
-  "version": "1.0.0",
-  "description": "ZeroAuth SDK - Passwordless credential verification",
+  "version": "1.1.000",
+  "description": "ZeroAuth SDK - Passwordless ZK credential verification",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
@@ -22,18 +22,31 @@
     "zk",
     "credential",
     "verification",
-    "passwordless"
+    "passwordless",
+    "zero-knowledge"
   ],
   "license": "MIT",
   "peerDependencies": {
     "react": ">=16.8.0",
     "react-dom": ">=16.8.0"
   },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^15.0.0",
     "@rollup/plugin-typescript": "^11.0.0",
+    "@types/qrcode": "^1.5.6",
     "rollup": "^4.0.0",
     "rollup-plugin-peer-deps-external": "^2.2.4",
     "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.3"
   }
 }
