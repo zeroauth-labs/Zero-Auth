@@ -3,6 +3,7 @@
  * Works without any imports - just add script tag!
  * 
  * Usage:
+ * <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
  * <script src="zero-auth-umd.js"></script>
  * <script>
  *   ZeroAuth.init({ relayUrl: '...' });
@@ -14,44 +15,62 @@
   'use strict';
 
   // ============================================
-  // QRCode (minimal embedded QR generator)
+  // QRCode (using CDN library)
   // ============================================
   
-  // Embedded minimal QR generator (to avoid external dependency)
+  // Use QRCode from global (loaded via CDN script tag)
   const QRCodeLib = {
-    generate: function(text, size) {
-      // Simple QR placeholder - in production, load from CDN or use library
-      // For now, return a data URL with the text encoded
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = size || 256;
-      canvas.height = size || 256;
-      
-      // Draw placeholder
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // Draw "QR" pattern (simplified)
-      ctx.fillStyle = '#000000';
-      const s = size / 25;
-      for (let i = 0; i < 25; i++) {
-        for (let j = 0; j < 25; j++) {
-          // Position patterns
-          if ((i < 7 && j < 7) || (i < 7 && j > 17) || (i > 17 && j < 7)) {
-            if ((i === 0 || i === 6 || j === 0 || j === 6) ||
-                (i === 2 && j === 2) || (i === 2 && j === 4) ||
-                (i === 4 && j === 2) || (i === 4 && j === 4)) {
-              ctx.fillRect(i * s + 10, j * s + 10, s, s);
-            }
-          } else if ((i + j) % 3 === 0) {
-            ctx.fillRect(i * s + 10, j * s + 10, s, s);
-          }
-        }
+    generate: async function(text, size) {
+      // Wait for QRCode to be available
+      if (typeof QRCode === 'undefined') {
+        console.error('[ZeroAuth] QRCode library not loaded. Add: <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>');
+        // Fallback to placeholder
+        return createPlaceholderQR(size || 256);
       }
       
-      return canvas.toDataURL('image/png');
+      try {
+        return await QRCode.toDataURL(text, {
+          width: size || 256,
+          margin: 1,
+          color: {
+            dark: '#000000',
+            light: '#ffffff'
+          }
+        });
+      } catch (e) {
+        console.error('[ZeroAuth] QR generation failed:', e);
+        return createPlaceholderQR(size || 256);
+      }
     }
   };
+  
+  // Fallback placeholder QR
+  function createPlaceholderQR(size) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = size;
+    canvas.height = size;
+    
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = '#000000';
+    const s = size / 25;
+    for (let i = 0; i < 25; i++) {
+      for (let j = 0; j < 25; j++) {
+        if ((i < 7 && j < 7) || (i < 7 && j > 17) || (i > 17 && j < 7)) {
+          if ((i === 0 || i === 6 || j === 0 || j === 6) ||
+              (i === 2 && j === 2) || (i === 2 && j === 4) ||
+              (i === 4 && j === 2) || (i === 4 && j === 4)) {
+            ctx.fillRect(i * s + 10, j * s + 10, s, s);
+          }
+        } else if ((i + j) % 3 === 0) {
+          ctx.fillRect(i * s + 10, j * s + 10, s, s);
+        }
+      }
+    }
+    return canvas.toDataURL('image/png');
+  }
 
   // ============================================
   // Modal UI
@@ -278,11 +297,11 @@
           }
           return response.json();
         })
-        .then(function(data) {
+        .then(async function(data) {
           currentSession = data;
           
-          // Generate QR
-          var qrDataUrl = QRCodeLib.generate(JSON.stringify(data.qr_payload), 200);
+          // Generate QR (async)
+          var qrDataUrl = await QRCodeLib.generate(JSON.stringify(data.qr_payload), 200);
           
           // Show modal
           var modal = createModal({
