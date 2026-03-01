@@ -1078,21 +1078,21 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
   </main>
 
   <!-- ZeroAuth SDK -->
-  <script type="module">
-    // For GitHub Pages, load from ../zero-auth-sdk/dist/
-    // For local development, load from ./dist/
-    const isGitHubPages = window.location.pathname.includes('/docs/');
-    const sdkPath = isGitHubPages ? '../zero-auth-sdk/dist/index.js' : './dist/index.js';
-    
-    import(sdkPath).then(({ ZeroAuth, validateQRPayload }) => {
-      // Make available globally
-      window.ZeroAuth = ZeroAuth;
-      window.validateQRPayload = validateQRPayload;
-      
-      // Dispatch custom event when SDK is ready
-      window.dispatchEvent(new Event('zeroAuthReady'));
-    }).catch(err => {
-      console.error('Failed to load SDK:', err);
+  <!-- Load QRCode from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <!-- Load ZeroAuth UMD (standalone) -->
+  <script src="./dist/zero-auth-umd.js"></script>
+  <script>
+    // Wait for ZeroAuth to load
+    window.addEventListener('DOMContentLoaded', function() {
+      setTimeout(function() {
+        if (window.ZeroAuth) {
+          console.log('ZeroAuth loaded!');
+          window.dispatchEvent(new Event('zeroAuthReady'));
+        } else {
+          console.error('ZeroAuth failed to load');
+        }
+      }, 100);
     });
   </script>
   
