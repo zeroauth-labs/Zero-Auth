@@ -2,8 +2,10 @@ name: Deploy Demo Site
 
 on:
   push:
-    branches: [main]
-    paths: ['demo-site/**']
+    branches: [main, harsh]
+    paths: 
+      - 'docs/**'
+      - 'zero-auth-sdk/dist/**'
 
 permissions:
   contents: read
@@ -27,7 +29,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'demo-site'
+          path: 'docs'
 
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
