@@ -1,131 +1,517 @@
-# Architecture
+# Zero-Auth Architecture
 
-**Analysis Date:** 2026-02-21
-
-## Pattern Overview
-
-**Overall:** Monorepo with a mobile client (Expo Router) and a Node/Express relay service.
-
-**Key Characteristics:**
-- Route-as-file UI with Expo Router for mobile screens.
-- Thin relay API with in-memory session store for proofs.
-- ZK proof generation isolated in a hidden WebView bridge.
-
-## Layers
-
-**UI Screens (Wallet):**
-- Purpose: User flows, navigation, and UX for scanning, credential management, and approvals.
-- Location: `zero-auth-wallet/app/`
-- Contains: Expo Router routes, screen components, and layout definitions.
-- Depends on: `zero-auth-wallet/lib/`, `zero-auth-wallet/store/`, `zero-auth-wallet/components/`
-- Used by: Expo Router entry (`expo-router/entry` via `zero-auth-wallet/package.json`)
-
-**State Management (Wallet):**
-- Purpose: Persisted app state for sessions, credentials, notifications, and wallet status.
-- Location: `zero-auth-wallet/store/`
-- Contains: Zustand stores with persistence middleware and SecureStore helpers.
-- Depends on: `zero-auth-wallet/lib/storage.ts`, `zero-auth-wallet/lib/wallet.ts`
-- Used by: UI screens and app layout (`zero-auth-wallet/app/_layout.tsx`)
-
-**Domain Logic (Wallet):**
-- Purpose: ZK proof creation, QR parsing, identity management, revocation checks, offline queueing.
-- Location: `zero-auth-wallet/lib/`
-- Contains: Proof generation, hashing/commitment, protocol parsing, storage adapters.
-- Depends on: Expo APIs (SecureStore, Asset, FileSystem), ZK bridge in `zero-auth-wallet/components/ZKEngine.tsx`.
-- Used by: Screens like `zero-auth-wallet/app/approve-request.tsx`, `zero-auth-wallet/app/(tabs)/scanner.tsx`, `zero-auth-wallet/app/add-credential/verify.tsx`.
-
-**ZK Engine Bridge (Wallet):**
-- Purpose: Run SnarkJS/Poseidon in an isolated WebView and expose a Promise-based bridge.
-- Location: `zero-auth-wallet/components/ZKEngine.tsx`
-- Contains: Hidden WebView, script injection, request/response bridge, timeout handling.
-- Depends on: `zero-auth-wallet/assets/`, `zero-auth-wallet/lib/zk-bridge-types.ts`
-- Used by: Proof and commitment logic in `zero-auth-wallet/lib/proof.ts` and `zero-auth-wallet/lib/hashing.ts`.
-
-**Relay API (Server):**
-- Purpose: Create verification sessions and accept proof submissions.
-- Location: `zero-auth-relay/dist/index.js`
-- Contains: Express app, in-memory session store, CORS, JSON handling.
-- Depends on: Express middleware, UUID.
-- Used by: Wallet proof submission (`zero-auth-wallet/app/approve-request.tsx`).
-
-## Data Flow
-
-**Verification (QR -> Proof -> Relay):**
-
-1. QR scanned in `zero-auth-wallet/app/(tabs)/scanner.tsx`.
-2. QR payload parsed in `zero-auth-wallet/lib/qr-protocol.ts`.
-3. User approves in `zero-auth-wallet/app/approve-request.tsx`.
-4. Proof inputs prepared and proof generated via `zero-auth-wallet/lib/proof.ts`.
-5. ZK proof executed in WebView bridge `zero-auth-wallet/components/ZKEngine.tsx`.
-6. Proof submitted to relay callback in `zero-auth-wallet/app/approve-request.tsx`.
-7. Relay stores proof and updates session in `zero-auth-relay/dist/index.js`.
-
-**Credential Issuance (Local Add Flow):**
-
-1. Add flow launched via `zero-auth-wallet/app/add-credential/index.tsx`.
-2. Credential verification flow in `zero-auth-wallet/app/add-credential/verify.tsx`.
-3. Commitments generated via `zero-auth-wallet/lib/hashing.ts` and ZK bridge.
-4. Salt stored in SecureStore, credential stored in Zustand via `zero-auth-wallet/store/auth-store.ts`.
-
-**Wallet Initialization:**
-
-1. App bootstraps in `zero-auth-wallet/app/_layout.tsx`.
-2. Wallet identity loaded or generated via `zero-auth-wallet/lib/wallet.ts`.
-3. State persisted via `zero-auth-wallet/store/wallet-store.ts` and `zero-auth-wallet/lib/storage.ts`.
-
-**State Management:**
-- Global state uses Zustand with AsyncStorage persistence in `zero-auth-wallet/store/auth-store.ts`.
-- Secure key material stored via Expo SecureStore in `zero-auth-wallet/lib/wallet.ts`.
-
-## Key Abstractions
-
-**ZK Engine:**
-- Purpose: Abstracts proof generation and hashing into a WebView execution environment.
-- Examples: `zero-auth-wallet/components/ZKEngine.tsx`, `zero-auth-wallet/lib/hashing.ts`, `zero-auth-wallet/lib/proof.ts`.
-- Pattern: Context provider with Promise-based execution bridge.
-
-**Credential Model:**
-- Purpose: Represents local credentials, commitments, and verification metadata.
-- Examples: `zero-auth-wallet/store/auth-store.ts`.
-- Pattern: Plain object model stored in Zustand with persistence.
-
-**Verification Request:**
-- Purpose: Protocol payload scanned from QR and used to drive proof creation.
-- Examples: `zero-auth-wallet/lib/qr-protocol.ts`.
-- Pattern: JSON-encoded protocol object validated at parse time.
-
-## Entry Points
-
-**Wallet App Entry:**
-- Location: `zero-auth-wallet/app/_layout.tsx`
-- Triggers: Expo Router initialization via `expo-router/entry` in `zero-auth-wallet/package.json`.
-- Responsibilities: Polyfills, state hydration checks, initial routing.
-
-**Wallet Tabs Layout:**
-- Location: `zero-auth-wallet/app/(tabs)/_layout.tsx`
-- Triggers: Expo Router route group.
-- Responsibilities: Tab navigation, styling, and icon setup.
-
-**Relay Server Entry:**
-- Location: `zero-auth-relay/dist/index.js`
-- Triggers: Node process start.
-- Responsibilities: Session creation, retrieval, and proof submission endpoints.
-
-## Error Handling
-
-**Strategy:** Console logging with user-facing alerts in UI; HTTP errors returned as JSON.
-
-**Patterns:**
-- Express returns JSON errors in `zero-auth-relay/dist/index.js`.
-- UI uses alerts and status flags in `zero-auth-wallet/app/approve-request.tsx`.
-- WebView bridge logs and rejects requests in `zero-auth-wallet/components/ZKEngine.tsx`.
-
-## Cross-Cutting Concerns
-
-**Logging:** Console logging in UI and WebView bridge via `console.log` in `zero-auth-wallet/components/ZKEngine.tsx` and screens.
-**Validation:** QR payload validation in `zero-auth-wallet/lib/qr-protocol.ts`.
-**Authentication:** Biometric gate before proof generation in `zero-auth-wallet/app/approve-request.tsx`.
+This document describes the architectural patterns, key components, and data flow across the Zero-Auth ecosystem.
 
 ---
 
-*Architecture analysis: 2026-02-21*
+## 1. Overall Architecture Pattern
+
+Zero-Auth follows a **three-tier distributed architecture** with a clear separation of concerns:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         VERIFIER (Website/App)                          │
+│                   Uses zero-auth-sdk to request proof                  │
+│                         (zero-auth-sdk/)                               │
+└─────────────────────────────┬───────────────────────────────────────────┘
+                              │ QR Code / Session API
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         RELAY SERVER                                    │
+│              Session management & ZK proof verification               │
+│                         (zero-auth-relay/)                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                 │
+│  │ Express API  │  │  Supabase    │  │   snarkjs    │                 │
+│  │              │──│   Database   │  │  Verification│                 │
+│  └──────────────┘  └──────────────┘  └──────────────┘                 │
+└─────────────────────────────┬───────────────────────────────────────────┘
+                              │ Proof Submission
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         WALLET APP                                      │
+│           Mobile app for credential management & proof generation     │
+│                         (zero-auth-wallet/)                            │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                 │
+│  │ Expo Router  │  │    ZKEngine  │  │   zustand    │                 │
+│  │   (UI)       │  │  (WebView)   │  │   (State)    │                 │
+│  └──────────────┘  └──────────────┘  └──────────────┘                 │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Architectural Principles
+
+1. **Trust Minimization**: Zero-knowledge proofs allow credential verification without revealing underlying data
+2. **Decentralized Identity**: Users control their own credentials using did:key (Ed25519)
+3. **Session-Based**: All verifications use ephemeral sessions with timeouts
+4. **Mobile-First**: Wallet is designed as a React Native mobile app
+
+---
+
+## 2. Key Components and Responsibilities
+
+### 2.1 zero-auth-wallet (Mobile Wallet)
+
+**Location:** `/home/harsh/Documents/Zero-Auth/zero-auth-wallet/`
+
+#### Entry Points
+
+| File | Purpose |
+|------|---------|
+| `app/_layout.tsx` | Root layout with ZKProvider, navigation stack |
+| `app/(tabs)/index.tsx` | Home screen with active sessions |
+| `app/(tabs)/credentials.tsx` | Credential management UI |
+| `app/(tabs)/scanner.tsx` | QR code scanner for verification requests |
+| `app/add-credential/index.tsx` | Credential import/creation flow |
+
+#### Core Components
+
+| Component | File Path | Responsibility |
+|-----------|-----------|----------------|
+| `ZKProvider` | `components/ZKEngine.tsx` | WebView-based ZK proof generation engine |
+| `SessionCard` | `components/SessionCard.tsx` | Display active/revoked sessions |
+| `NotificationModal` | `components/NotificationModal.tsx` | Push notification display |
+| `CustomAlert` | `components/CustomAlert.tsx` | Reusable alert dialogs |
+
+#### State Management (Zustand)
+
+| Store | File Path | Purpose |
+|-------|-----------|---------|
+| `useWalletStore` | `store/wallet-store.ts` | Wallet identity (DID, public key), initialization state |
+| `useAuthStore` | `store/auth-store.ts` | Credentials, sessions, notifications, PIN/biometrics |
+
+#### Key Libraries
+
+| Library | Purpose |
+|---------|---------|
+| `@noble/ed25519` | Ed25519 key generation for did:key identity |
+| `snarkjs` | ZK proof generation (via WebView bridge) |
+| `expo-secure-store` | Secure storage for private keys |
+| `expo-camera` | QR code scanning |
+| `nativewind` | TailwindCSS for React Native |
+
+#### Credential Types Supported
+
+- **Age Verification**: Proves user is over 18 without revealing birth year
+- **Student ID**: Proves student status without revealing specific details
+- **Trial**: Simple credential for trial license verification
+
+---
+
+### 2.2 zero-auth-sdk (JavaScript SDK)
+
+**Location:** `/home/harsh/Documents/Zero-Auth/zero-auth-sdk/`
+
+#### Entry Points
+
+| File | Purpose |
+|------|---------|
+| `src/index.ts` | Pure JavaScript SDK (ZeroAuth class) |
+| `src/index.tsx` | React components and hooks |
+
+#### Core Classes
+
+**`ZeroAuth` (src/index.ts)**
+```typescript
+// Main SDK class - handles verification flow
+class ZeroAuth {
+  constructor(config: ZeroAuthConfig)
+  verify(request?, options?): Promise<VerificationResult>
+  createSession(request?): Promise<SessionInfo>
+  generateQRBase64(payload, options?): Promise<string>
+  cancelSession(sessionId): Promise<void>
+}
+```
+
+#### React Components
+
+| Component | Purpose |
+|-----------|---------|
+| `ZeroAuthProvider` | Context provider for SDK configuration |
+| `ZeroAuthButton` | Pre-styled button that triggers verification |
+| `ZeroAuthModal` | Modal with QR code display and status |
+| `ZeroAuthQR` | Standalone QR code generator |
+| `useZeroAuthVerification` | Hook for custom verification flows |
+
+#### Key Functions
+
+| Function | Purpose |
+|----------|---------|
+| `validateConfig()` | Validates SDK configuration |
+| `validateQRPayload()` | Validates QR payload structure and expiry |
+| `generateNonce()` | Cryptographically secure nonce generation |
+
+---
+
+### 2.3 zero-auth-relay (Backend Service)
+
+**Location:** `/home/harsh/Documents/Zero-Auth/zero-auth-relay/`
+
+#### Entry Point
+
+**`src/index.ts`** - Express server with routes:
+- `POST /api/v1/sessions` - Create verification session
+- `GET /api/v1/sessions/:id` - Get session status
+- `POST /api/v1/sessions/:id/proof` - Submit ZK proof
+- `GET /health` - Health check
+
+#### Core Modules
+
+| Module | File Path | Responsibility |
+|--------|-----------|----------------|
+| `db.ts` | `src/db.ts` | Supabase database operations |
+| `zk.ts` | `src/zk.ts` | ZK proof verification using snarkjs |
+| `validation.ts` | `src/validation.ts` | Request validation middleware |
+| `errors.ts` | `src/errors.ts` | Error code definitions |
+
+#### Database Schema (Supabase)
+
+**sessions table:**
+```sql
+- session_id (UUID, PK)
+- nonce (UUID)
+- verifier_name (text)
+- required_claims (JSON)
+- credential_type (text)
+- status (PENDING | COMPLETED | EXPIRED)
+- proof (JSON)
+- proof_hash (text)
+- expires_at (timestamp)
+```
+
+**verification_keys table:**
+```sql
+- credential_type (text, PK)
+- key_data (JSON) - ZK verification key
+```
+
+#### Security Features
+
+1. **Rate Limiting**: 500 requests per 15 minutes per IP
+2. **Proof Replay Protection**: Hash-based duplicate detection
+3. **ZK Verification**: Cryptographic proof verification (fail-closed)
+4. **Session Timeouts**: 5-minute expiration on all sessions
+
+---
+
+## 3. Data Flow Between Components
+
+### 3.1 Verification Flow
+
+```
+┌─────────────┐     1. createSession()      ┌─────────────┐
+│   Verifier  │ ─────────────────────────▶ │    Relay    │
+│   (SDK)     │                            │   Server    │
+└─────────────┘                            └──────┬──────┘
+     │                                             │
+     │  2. Return session + QR payload            │
+     │◀────────────────────────────────────────────┤
+     │
+     │  3. Display QR code
+     │
+     ▼
+┌─────────────┐     4. Scan QR code       ┌─────────────┐
+│    Wallet   │ ◀───────────────────────── │   Verifier  │
+│    App      │                            │   (SDK)     │
+└──────┬──────┘                            └─────────────┘
+       │
+       │ 5. Parse QR payload
+       │   - session_id
+       │   - verifier info
+       │   - required_claims
+       │   - credential_type
+       │
+       │ 6. Select matching credential
+       │   (from useAuthStore)
+       │
+       │ 7. Generate ZK proof
+       │   (via ZKEngine WebView)
+       │
+       │ 8. Submit proof to relay
+       │   POST /api/v1/sessions/{id}/proof
+       ▼
+┌─────────────┐                            ┌─────────────┐
+│    Wallet   │ ───────────────────────▶ │    Relay    │
+│    App      │     9. Proof submission  │   Server    │
+└─────────────┘                            └──────┬──────┘
+                                                   │
+                                                   │ 10. Verify ZK proof
+                                                   │    (snarkjs.groth16.verify)
+                                                   │
+                                                   │ 11. Update session status
+                                                   │    to COMPLETED
+                                                   ▼
+                                            ┌─────────────┐
+                                            │    Relay    │
+                                            │   Server    │
+                                            └─────────────┘
+                                                   │
+                                                   │ 12. Polling returns
+                                                   │    COMPLETED status
+                                                   ▼
+                                            ┌─────────────┐
+                                            │   Verifier  │
+                                            │    (SDK)    │
+                                            └─────────────┘
+```
+
+### 3.2 Credential Import Flow
+
+```
+┌─────────────┐
+│    Wallet   │
+│    App      │
+└──────┬──────┘
+       │
+       │ 1. User selects "Add Credential"
+       │    (app/add-credential/index.tsx)
+       │
+       │ 2. Choose import method
+       │    - Form entry
+       │    - QR code scan
+       │    - Import file
+       │
+       │ 3. Validate credential data
+       │
+       │ 4. Generate salt (expo-secure-store)
+       │
+       │ 5. Calculate Poseidon commitments
+       │    (for ZK proof generation)
+       │
+       │ 6. Store in useAuthStore
+       │    (persisted to AsyncStorage)
+       ▼
+┌─────────────┐
+│    Wallet   │
+│   Storage   │
+└─────────────┘
+```
+
+### 3.3 ZK Proof Generation (Wallet)
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                     Wallet App (Native)                        │
+│                                                                │
+│  generateProof()  ───────────────────────────────────────────┐ │
+│       │                                                      │ │
+│       ▼                                                      │ │
+│  ┌─────────────────┐                                         │ │
+│  │ Load circuit   │  age_check.zkey, student_check.zkey    │ │
+│  │ files (assets) │  (bundled in app)                       │ │
+│  └────────┬────────┘                                         │ │
+│           │                                                   │ │
+│           ▼                                                   │ │
+│  ┌─────────────────┐                                         │ │
+│  │ Prepare inputs │  birth_year, salt, commitment           │ │
+│  │ (credential)   │                                         │ │
+│  └────────┬────────┘                                         │ │
+│           │                                                   │ │
+└───────────┼───────────────────────────────────────────────────┘ │
+            │                                                    │
+            │  execute('GENERATE_PROOF', {inputs, wasm, zkey}) │
+            ▼                                                    │
+┌────────────────────────────────────────────────────────────────┐
+│                    ZKEngine (WebView)                          │
+│                                                                │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │ Inject snarkjs + poseidon libraries                    │  │
+│  │ (from assets/snarkjs.bundle, assets/poseidon.bundle)  │  │
+│  └────────────────────────────────────────────────────────┘  │
+│                         │                                      │
+│                         ▼                                      │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │ snarkjs.groth16.fullProve(inputs, wasm, zkey)        │  │
+│  └────────────────────────────────────────────────────────┘  │
+│                         │                                      │
+│                         ▼                                      │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │ Return { proof: { pi_a, pi_b, pi_c }, publicSignals } │  │
+│  └────────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 4. Abstractions and Patterns
+
+### 4.1 State Management Pattern (Zustand)
+
+The wallet uses **Zustand** with the following pattern:
+
+```typescript
+// Store definition with typed state and actions
+export const useWalletStore = create<WalletState>((set) => ({
+  isInitialized: false,
+  did: null,
+  
+  checkInitialization: async () => { ... },
+  initializeWallet: async () => { ... },
+}));
+
+// Usage in components
+const isInitialized = useWalletStore((state) => state.isInitialized);
+```
+
+**Key patterns:**
+- Single store per domain (wallet, auth)
+- Async actions for async operations
+- Persist middleware for data persistence
+
+### 4.2 Provider Pattern (React Context)
+
+```typescript
+// ZKProvider wraps the app
+<ZKProvider>
+  <App />
+</ZKProvider>
+
+// useZKEngine hook provides ZK functionality
+const { execute, status } = useZKEngine();
+```
+
+### 4.3 WebView Bridge Pattern
+
+The wallet uses a **WebView bridge** to run ZK operations:
+
+1. **Loading**: Bundled JS assets (snarkjs, poseidon) are loaded into WebView
+2. **Communication**: React Native ↔ WebView via `injectJavaScript` and `onMessage`
+3. **Execution**: Native code calls `execute(type, payload)` which injects JS to run operations
+
+**Example:**
+```typescript
+// From components/ZKEngine.tsx
+const result = await engine.execute('GENERATE_PROOF', {
+  inputs: { birthYear: 1995, salt: '...' },
+  wasmB64: '...',
+  zkeyB64: '...'
+});
+```
+
+### 4.4 Repository Pattern (Database)
+
+The relay uses a **repository pattern** for database access:
+
+```typescript
+// From src/db.ts
+export async function createSession(...) { ... }
+export async function getSession(sessionId) { ... }
+export async function updateSession(sessionId, updates) { ... }
+```
+
+### 4.5 Middleware Pattern (Express)
+
+Request validation uses Express middleware:
+
+```typescript
+// From src/validation.ts
+app.post('/api/v1/sessions', validateSessionCreation, async (req, res) => {
+  // Handler only runs if validation passes
+});
+```
+
+### 4.6 SDK Configuration Pattern
+
+The SDK uses a **configuration object pattern**:
+
+```typescript
+// Required configuration
+const config = {
+  relayUrl: 'https://relay.example.com',
+  apiKey: 'optional-api-key',
+  verifierName: 'My App',
+  credentialType: 'Age Verification',
+  claims: ['birth_year'],
+  timeout: 60
+};
+
+const zeroAuth = new ZeroAuth(config);
+```
+
+### 4.7 QR Protocol Pattern
+
+QR codes contain a structured payload:
+
+```typescript
+// From zero-auth-sdk/src/index.ts
+const qr_payload = {
+  v: 1,                    // Protocol version
+  action: 'verify',        // Action type
+  session_id: 'uuid',      // Session identifier
+  nonce: 'uuid',           // Cryptographic nonce
+  verifier: {
+    name: 'Verifier Name',
+    did: 'did:web:...',   // Verifier DID
+    callback: 'https://...'  // Proof submission URL
+  },
+  required_claims: ['birth_year'],
+  credential_type: 'Age Verification',
+  expires_at: 1234567890   // Unix timestamp
+};
+```
+
+---
+
+## 5. Directory Structure Summary
+
+```
+/home/harsh/Documents/Zero-Auth/
+├── zero-auth-wallet/              # Mobile wallet (React Native/Expo)
+│   ├── app/                      # Expo Router screens
+│   │   ├── _layout.tsx           # Root layout
+│   │   ├── (tabs)/               # Tab-based navigation
+│   │   │   ├── index.tsx         # Home
+│   │   │   ├── credentials.tsx  # Credentials list
+│   │   │   ├── scanner.tsx       # QR scanner
+│   │   │   ├── history.tsx      # Session history
+│   │   │   └── settings.tsx     # Settings
+│   │   ├── add-credential/       # Credential import flow
+│   │   ├── onboarding.tsx        # First-time setup
+│   │   └── my-qr.tsx            # Display own QR
+│   ├── components/               # Reusable components
+│   │   ├── ZKEngine.tsx         # ZK proof WebView
+│   │   └── ...
+│   ├── store/                    # Zustand stores
+│   │   ├── wallet-store.ts      # Wallet identity
+│   │   └── auth-store.ts        # Auth/sessions/credentials
+│   ├── lib/                      # Business logic
+│   │   ├── wallet.ts            # Keypair generation (did:key)
+│   │   ├── proof.ts             # ZK proof generation
+│   │   ├── hashing.ts          # Poseidon hashing
+│   │   ├── qr-protocol.ts      # QR parsing/encoding
+│   │   └── ...
+│   └── circuits/                 # ZK circuits (compiled)
+│       ├── age_check.circom     # Age verification circuit
+│       └── student_check.circom # Student verification circuit
+│
+├── zero-auth-sdk/               # JavaScript SDK
+│   ├── src/
+│   │   ├── index.ts             # Pure JS SDK (ZeroAuth class)
+│   │   └── index.tsx           # React components/hooks
+│   └── dist/                     # Built output
+│
+├── zero-auth-relay/             # Backend relay service
+│   ├── src/
+│   │   ├── index.ts             # Express server
+│   │   ├── db.ts               # Supabase operations
+│   │   ├── zk.ts               # ZK verification
+│   │   ├── validation.ts        # Request validation
+│   │   └── errors.ts           # Error definitions
+│   ├── migrations/              # Database migrations
+│   └── .env                    # Environment config
+│
+└── .planning/codebase/          # Architecture docs
+    ├── ARCHITECTURE.md          # This file
+    └── STACK.md                 # Technology stack
+```
+
+---
+
+## 6. Security Considerations
+
+1. **Private Key Storage**: Stored in expo-secure-store (Keychain on iOS, Keystore on Android)
+2. **ZK Proofs**: Zero-knowledge ensures credentials are never revealed
+3. **Proof Replay**: Hash-based duplicate detection prevents replay attacks
+4. **Session Timeouts**: All sessions expire after 5 minutes
+5. **Rate Limiting**: Prevents DoS attacks on relay
+6. **Fail-Closed**: ZK verification failures reject proofs (never accept invalid proofs)
+7. **PIN/Biometrics**: Optional additional authentication for wallet access

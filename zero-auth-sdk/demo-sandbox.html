@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZeroAuth SDK - Testing Sandbox</title>
+  <style>
+    :root {
+      --bg-dark: #09090b;
+      --bg-card: #18181b;
+      --bg-elevated: #27272a;
+      --border: #3f3f46;
+      --primary: #8b5cf6;
+      --primary-hover: #a78bfa;
+      --primary-dim: rgba(139, 92, 246, 0.15);
+      --success: #22c55e;
+      --error: #ef4444;
+      --warning: #f59e0b;
+      --info: #3b82f6;
+      --text: #fafafa;
+      --text-dim: #a1a1aa;
+      --text-muted: #71717a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* Header */
+    .header {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-content {
+      max-width: 1800px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--primary), #c084fc);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 16px;
+    }
+
+    .logo-text {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .logo-badge {
+      background: var(--primary-dim);
+      color: var(--primary);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 4px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+
+    .tab-btn:hover {
+      background: var(--bg-elevated);
+      color: var(--text);
+    }
+
+    .tab-btn.active {
+      background: var(--primary-dim);
+      color: var(--primary);
+    }
+
+    /* Main Layout */
+    .main {
+      max-width: 1800px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 24px;
+      min-height: calc(100vh - 140px);
+    }
+
+    @media (max-width: 1100px) {
+      .main { grid-template-columns: 1fr; }
+    }
+
+    /* Sidebar */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-elevated);
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-title-icon {
+      width: 16px;
+      height: 16px;
+      background: var(--primary);
+      border-radius: 4px;
+    }
+
+    .panel-body {
+      padding: 16px;
+    }
+
+    /* Form Elements */
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .form-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+
+    .form-label .help {
+      color: var(--text-muted);
+      cursor: help;
+      position: relative;
+    }
+
+    .form-label .help:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      white-space: nowrap;
+      z-index: 100;
+      color: var(--text);
+    }
+
+    .form-input, .form-select {
+      width: 100%;
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      transition: border-color 0.15s;
+    }
+
+    .form-input:focus, .form-select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* Chips */
+    .chip-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip {
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .chip:hover {
+      border-color: var(--primary);
+      color: var(--text);
+    }
+
+    .chip.active {
+      background: var(--primary-dim);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    /* Toggle */
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .toggle-row:last-child {
+      border-bottom: none;
+    }
+
+    .toggle-info {
+      flex: 1;
+    }
+
+    .toggle-label {
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .toggle-desc {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .toggle {
+      width: 36px;
+      height: 20px;
+      background: var(--border);
+      border-radius: 10px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.15s;
+      flex-shrink: 0;
+      margin-left: 12px;
+    }
+
+    .toggle.active {
+      background: var(--primary);
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background: white;
+      border-radius: 50%;
+      top: 3px;
+      left: 3px;
+      transition: transform 0.15s;
+    }
+
+    .toggle.active::after {
+      transform: translateX(16px);
+    }
+
+    /* Content Area */
+    .content {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Tab Content */
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .card-body {
+      padding: 16px;
+    }
+
+    /* Button */
+    .btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: var(--border);
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 11px;
+    }
+
+    /* Result Box */
+    .result-box {
+      background: var(--bg-dark);
+      border-radius: 8px;
+      padding: 12px;
+      font-family: 'Fira Code', monospace;
+      font-size: 12px;
+      max-height: 300px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .result-box.success {
+      border: 1px solid var(--success);
+      background: rgba(34, 197, 94, 0.05);
+    }
+
+    .result-box.error {
+      border: 1px solid var(--error);
+      background: rgba(239, 68, 68, 0.05);
+    }
+
+    /* JSON Viewer */
+    .json-key { color: #7dd3fc; }
+    .json-string { color: #86efac; }
+    .json-number { color: #fcd34d; }
+    .json-boolean { color: #c084fc; }
+    .json-null { color: #f472b6; }
+
+    /* Console */
+    .console-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      max-height: 250px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .console-header {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-elevated);
+    }
+
+    .console-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+    }
+
+    .console-body {
+      flex: 1;
+      overflow: auto;
+      padding: 8px;
+      font-family: 'Fira Code', monospace;
+      font-size: 11px;
+    }
+
+    .console-line {
+      padding: 2px 0;
+      display: flex;
+      gap: 8px;
+    }
+
+    .console-time {
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .console-msg { color: var(--text-dim); }
+    .console-log { color: var(--text); }
+    .console-warn { color: var(--warning); }
+    .console-error { color: var(--error); }
+    .console-info { color: var(--info); }
+
+    /* QR Display */
+    .qr-display {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 24px;
+    }
+
+    .qr-image {
+      background: white;
+      padding: 16px;
+      border-radius: 8px;
+    }
+
+    .qr-image canvas, .qr-image img {
+      display: block;
+    }
+
+    /* API Tester */
+    .api-tester {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 800px) {
+      .api-tester { grid-template-columns: 1fr; }
+    }
+
+    .endpoint-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .endpoint-method {
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-dim);
+    }
+
+    .endpoint-method.get { color: #22d3ee; border-color: #22d3ee; }
+    .endpoint-method.post { color: #22c55e; border-color: #22c55e; }
+    .endpoint-method.delete { color: #f472b6; border-color: #f472b6; }
+
+    .endpoint-input {
+      flex: 1;
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-family: 'Fira Code', monospace;
+    }
+
+    /* Session Table */
+    .session-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .session-table th, .session-table td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+
+    .session-table th {
+      background: var(--bg-elevated);
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      font-size: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    .session-status {
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .session-status.pending { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+    .session-status.completed { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+    .session-status.expired { background: rgba(239, 68, 68, 0.15); color: var(--error); }
+
+    /* Badge */
+    .badge {
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .badge-primary { background: var(--primary-dim); color: var(--primary); }
+    .badge-success { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+    .badge-warning { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+
+    /* Slider */
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .slider {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      outline: none;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      background: var(--primary);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .slider-value {
+      min-width: 45px;
+      text-align: right;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    /* Color Picker */
+    .color-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .color-swatch {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.1s;
+    }
+
+    .color-swatch:hover, .color-swatch.active {
+      transform: scale(1.1);
+      border-color: white;
+    }
+
+    /* Doc Panel */
+    .doc-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    .doc-section {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .doc-section:last-child {
+      border-bottom: none;
+    }
+
+    .doc-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--primary);
+    }
+
+    .doc-text {
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    .doc-code {
+      background: var(--bg-dark);
+      padding: 12px;
+      border-radius: 6px;
+      font-family: 'Fira Code', monospace;
+      font-size: 11px;
+      margin-top: 8px;
+      overflow-x: auto;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-dark);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--text-muted);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-content">
+      <div class="logo">
+        <div class="logo-icon">Z</div>
+        <span class="logo-text">ZeroAuth</span>
+        <span class="logo-badge">Sandbox</span>
+      </div>
+      <nav class="tabs">
+        <button class="tab-btn active" data-tab="sandbox">Sandbox</button>
+        <button class="tab-btn" data-tab="api">API Tester</button>
+        <button class="tab-btn" data-tab="qr">QR Inspector</button>
+        <button class="tab-btn" data-tab="sessions">Sessions</button>
+        <button class="tab-btn" data-tab="docs">Docs</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main">
+    <!-- Left Sidebar - Configuration -->
+    <aside class="sidebar">
+      <!-- Connection Settings -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">
+            <span class="panel-title-icon"></span>
+            Connection
+          </span>
+        </div>
+        <div class="panel-body">
+          <div class="form-group">
+            <label class="form-label">
+              Relay URL
+              <span class="help" data-tooltip="The relay server that manages verification sessions">?</span>
+            </label>
+            <input type="text" class="form-input" id="relayUrl" value="https://zeroauth-relay.onrender.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label">API Key (optional)</label>
+            <input type="text" class="form-input" id="apiKey" placeholder="For signed QR payloads">
+          </div>
+        </div>
+      </div>
+
+      <!-- Verification Request -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Verification Request</span>
+        </div>
+        <div class="panel-body">
+          <div class="form-group">
+            <label class="form-label">Verifier Name</label>
+            <input type="text" class="form-input" id="verifierName" value="Demo Sandbox">
+          </div>
+          <div class="form-group">
+            <label class="form-label">
+              Credential Type
+              <span class="help" data-tooltip="Type of credential to request from wallet">?</span>
+            </label>
+            <div class="chip-group" id="credTypes">
+              <div class="chip active" data-value="Age Verification">Age Verification</div>
+              <div class="chip" data-value="Student ID">Student ID</div>
+              <div class="chip" data-value="Trial">Trial</div>
+              <div class="chip" data-value="Email Alternative">Email</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">
+              Required Claims
+              <span class="help" data-tooltip="Specific attributes to verify">?</span>
+            </label>
+            <div class="chip-group" id="claims">
+              <div class="chip active" data-value="birth_year">birth_year</div>
+              <div class="chip" data-value="age_over_18">age_over_18</div>
+              <div class="chip active" data-value="country">country</div>
+              <div class="chip" data-value="is_student">is_student</div>
+              <div class="chip" data-value="university">university</div>
+              <div class="chip" data-value="email">email</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Use Case</label>
+            <select class="form-select" id="useCase">
+              <option value="LOGIN">LOGIN - Authenticate user</option>
+              <option value="VERIFICATION">VERIFICATION - Prove attributes</option>
+              <option value="TRIAL_LICENSE">TRIAL_LICENSE - Activate trial</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Timeout (seconds)</label>
+            <input type="number" class="form-input" id="timeout" value="60" min="10" max="300">
+          </div>
+        </div>
+      </div>
+
+      <!-- QR Options -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">QR Options</span>
+        </div>
+        <div class="panel-body">
+          <div class="form-group">
+            <label class="form-label">Size</label>
+            <div class="slider-row">
+              <input type="range" class="slider" id="qrSize" min="128" max="400" value="200">
+              <span class="slider-value" id="qrSizeVal">200px</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Foreground</label>
+            <div class="color-row" id="fgColors">
+              <div class="color-swatch active" style="background:#000000" data-color="#000000"></div>
+              <div class="color-swatch" style="background:#1a1b26" data-color="#1a1b26"></div>
+              <div class="color-swatch" style="background:#7c3aed" data-color="#7c3aed"></div>
+              <div class="color-swatch" style="background:#10b981" data-color="#10b981"></div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Background</label>
+            <div class="color-row" id="bgColors">
+              <div class="color-swatch active" style="background:#ffffff" data-color="#ffffff"></div>
+              <div class="color-swatch" style="background:#f4f4f5" data-color="#f4f4f5"></div>
+              <div class="color-swatch" style="background:#1a1b26" data-color="#1a1b26"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Features -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Features</span>
+        </div>
+        <div class="panel-body">
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Show Modal</div>
+              <div class="toggle-desc">Display verification modal</div>
+            </div>
+            <div class="toggle active" data-toggle="modal"></div>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Deep Link</div>
+              <div class="toggle-desc">Generate wallet deep link</div>
+            </div>
+            <div class="toggle" data-toggle="deepLink"></div>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Debug Logging</div>
+              <div class="toggle-desc">Log to console panel</div>
+            </div>
+            <div class="toggle active" data-toggle="debug"></div>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Auto Poll</div>
+              <div class="toggle-desc">Automatically poll for completion</div>
+            </div>
+            <div class="toggle active" data-toggle="autoPoll"></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Right Content Area -->
+    <div class="content">
+      
+      <!-- Sandbox Tab -->
+      <div class="tab-content active" id="tab-sandbox">
+        <!-- Action Bar -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Verification Flow</span>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-secondary btn-sm" onclick="resetDemo()">Reset</button>
+              <button class="btn" id="startBtn" onclick="startVerification()">Start Verification</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+              <!-- QR Display -->
+              <div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase;">QR Code</div>
+                <div class="qr-display" id="qrDisplay">
+                  <div style="color: var(--text-dim); font-size: 13px;">Click "Start Verification" to generate QR</div>
+                </div>
+              </div>
+              <!-- Result -->
+              <div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase;">Result</div>
+                <div class="result-box" id="resultBox">Ready to start verification...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Generated Code -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Generated Code</span>
+            <button class="btn btn-secondary btn-sm" onclick="copyGeneratedCode()">Copy</button>
+          </div>
+          <div class="card-body">
+            <pre class="result-box" id="generatedCode" style="max-height: 150px;"></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- API Tester Tab -->
+      <div class="tab-content" id="tab-api">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">API Endpoint Tester</span>
+          </div>
+          <div class="card-body">
+            <div class="api-tester">
+              <!-- Create Session -->
+              <div>
+                <div style="font-size: 12px; font-weight: 600; margin-bottom: 12px; color: var(--text-dim);">POST /api/v1/sessions</div>
+                <div class="endpoint-row">
+                  <span class="endpoint-method post">POST</span>
+                  <input type="text" class="endpoint-input" id="apiSessions" value="/api/v1/sessions">
+                </div>
+                <div class="form-group">
+                  <textarea class="form-input" id="apiSessionsBody" rows="4" placeholder='{"verifier_name": "Test", "credential_type": "Age Verification", "required_claims": ["birth_year"]}'></textarea>
+                </div>
+                <button class="btn btn-sm" onclick="testApi('sessions')">Send</button>
+              </div>
+              <!-- Get Session -->
+              <div>
+                <div style="font-size: 12px; font-weight: 600; margin-bottom: 12px; color: var(--text-dim);">GET /api/v1/sessions/:id</div>
+                <div class="endpoint-row">
+                  <span class="endpoint-method get">GET</span>
+                  <input type="text" class="endpoint-input" id="apiSessionGet" value="/api/v1/sessions/">
+                </div>
+                <button class="btn btn-sm" onclick="testApi('sessionGet')">Send</button>
+              </div>
+            </div>
+            <div style="margin-top: 16px;">
+              <div style="font-size: 12px; font-weight: 600; margin-bottom: 8px; color: var(--text-dim);">Response</div>
+              <pre class="result-box" id="apiResponse">No request sent yet...</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- QR Inspector Tab -->
+      <div class="tab-content" id="tab-qr">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">QR Payload Inspector</span>
+            <button class="btn btn-secondary btn-sm" onclick="decodeQrInput()">Decode</button>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">QR Payload (paste JSON)</label>
+              <textarea class="form-input" id="qrPayloadInput" rows="6" placeholder='{"v":1,"action":"verify","session_id":"...","nonce":"...","verifier":{...}}'></textarea>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+              <div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">Decoded Fields</div>
+                <pre class="result-box" id="qrDecoded">No payload decoded</pre>
+              </div>
+              <div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">Validation</div>
+                <pre class="result-box" id="qrValidation">No payload decoded</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sessions Tab -->
+      <div class="tab-content" id="tab-sessions">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Active Sessions</span>
+            <button class="btn btn-secondary btn-sm" onclick="refreshSessions()">Refresh</button>
+          </div>
+          <div class="card-body">
+            <table class="session-table">
+              <thead>
+                <tr>
+                  <th>Session ID</th>
+                  <th>Verifier</th>
+                  <th>Credential</th>
+                  <th>Status</th>
+                  <th>Claims</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="sessionsTable">
+                <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No active sessions</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Docs Tab -->
+      <div class="tab-content" id="tab-docs">
+        <div class="doc-panel">
+          <div class="doc-section">
+            <div class="doc-title">Configuration Options</div>
+            <div class="doc-text">
+              <strong>relayUrl</strong> — URL of the relay server that manages verification sessions.<br>
+              <strong>apiKey</strong> (optional) — API key for verifier authentication, enables QR payload signing.<br>
+              <strong>verifierName</strong> — Name shown to users in the wallet.<br>
+              <strong>timeout</strong> — Session timeout in seconds (10-300).
+            </div>
+          </div>
+          <div class="doc-section">
+            <div class="doc-title">Credential Types</div>
+            <div class="doc-text">
+              <strong>Age Verification</strong> — Requires birth_year or age_over_18 claims<br>
+              <strong>Student ID</strong> — Requires expiry_year or university claims<br>
+              <strong>Trial</strong> — Requires trial_period claim<br>
+              <strong>Email Alternative</strong> — Requires email claim
+            </div>
+          </div>
+          <div class="doc-section">
+            <div class="doc-title">Use Cases</div>
+            <div class="doc-text">
+              <strong>LOGIN</strong> — Authenticates the user (e.g., "Sign in to...")<br>
+              <strong>VERIFICATION</strong> — Verifies attributes without authentication (e.g., "Verify your age to...")<br>
+              <strong>TRIAL_LICENSE</strong> — Activates a trial (e.g., "Activate trial for...")
+            </div>
+          </div>
+          <div class="doc-section">
+            <div class="doc-title">QR Payload Schema</div>
+            <div class="doc-code">{
+  "v": 1,                    // Version
+  "action": "verify",        // Action type
+  "session_id": "abc123",   // Unique session ID
+  "nonce": "xyz789",        // Cryptographic nonce
+  "verifier": {              // Verifier info
+    "name": "Demo",
+    "did": "did:web:...",
+    "callback": "https://..."
+  },
+  "required_claims": ["birth_year", "country"],
+  "credential_type": "Age Verification",
+  "expires_at": 1700000000,
+  "use_case": "LOGIN",
+  "signature": "..."         // Optional, if API key provided
+}</div>
+          </div>
+          <div class="doc-section">
+            <div class="doc-title">API Endpoints</div>
+            <div class="doc-code">POST /api/v1/sessions        - Create verification session
+GET  /api/v1/sessions/:id   - Get session status
+POST /api/v1/sessions/:id/proof - Submit ZK proof
+DELETE /api/v1/sessions/:id - Cancel session</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Console -->
+      <div class="console-panel">
+        <div class="console-header">
+          <span class="console-title">Console Output</span>
+          <button class="btn btn-secondary btn-sm" onclick="clearConsole()">Clear</button>
+        </div>
+        <div class="console-body" id="consoleBody">
+          <div class="console-line"><span class="console-time">--:--</span><span class="console-msg">ZeroAuth Sandbox initialized</span></div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ZeroAuth SDK -->
+  <script type="module">
+    import { ZeroAuth, validateQRPayload } from './dist/index.js';
+    
+    // Make available globally
+    window.ZeroAuth = ZeroAuth;
+    window.validateQRPayload = validateQRPayload;
+    
+    // Dispatch custom event when SDK is ready
+    window.dispatchEvent(new Event('zeroAuthReady'));
+  </script>
+  
+  <script>
+    // ============================================
+    // State
+    // ============================================
+    const state = {
+      credentialType: 'Age Verification',
+      claims: ['birth_year', 'country'],
+      useCase: 'LOGIN',
+      qrSize: 200,
+      qrColor: '#000000',
+      qrBgColor: '#ffffff',
+      showModal: true,
+      deepLink: false,
+      debug: true,
+      autoPoll: true,
+      session: null,
+      currentQrPayload: null
+    };
+
+    // Console logging
+    function log(msg, type = 'log') {
+      const consoleBody = document.getElementById('consoleBody');
+      const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+      const line = document.createElement('div');
+      line.className = 'console-line';
+      line.innerHTML = `<span class="console-time">${time}</span><span class="console-${type}">${msg}</span>`;
+      consoleBody.appendChild(line);
+      consoleBody.scrollTop = consoleBody.scrollHeight;
+    }
+
+    // Override console methods
+    const originalLog = console.log;
+    const originalWarn = console.warn;
+    const originalError = console.error;
+    console.log = (...args) => { originalLog.apply(console, args); if(state.debug) log(args[0] || args.join(' '), 'log'); };
+    console.warn = (...args) => { originalWarn.apply(console, args); if(state.debug) log(args[0] || args.join(' '), 'warn'); };
+    console.error = (...args) => { originalError.apply(console, args); if(state.debug) log(args[0] || args.join(' '), 'error'); };
+
+    // ============================================
+    // Initialize
+    // ============================================
+    function init() {
+      log('Initializing ZeroAuth SDK...');
+      
+      ZeroAuth.init({
+        relayUrl: document.getElementById('relayUrl').value,
+        verifierName: document.getElementById('verifierName').value,
+        timeout: parseInt(document.getElementById('timeout').value)
+      });
+
+      log('SDK initialized successfully');
+      generateCode();
+    }
+
+    // ============================================
+    // UI Handlers
+    // ============================================
+    
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    // Credential type
+    document.querySelectorAll('#credTypes .chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('#credTypes .chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        state.credentialType = chip.dataset.value;
+        updateClaimsForType();
+        generateCode();
+      });
+    });
+
+    // Claims
+    document.querySelectorAll('#claims .chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        chip.classList.toggle('active');
+        state.claims = Array.from(document.querySelectorAll('#claims .chip.active')).map(c => c.dataset.value);
+        generateCode();
+      });
+    });
+
+    // Use case
+    document.getElementById('useCase').addEventListener('change', e => {
+      state.useCase = e.target.value;
+      generateCode();
+    });
+
+    // QR Size
+    document.getElementById('qrSize').addEventListener('input', e => {
+      state.qrSize = parseInt(e.target.value);
+      document.getElementById('qrSizeVal').textContent = state.qrSize + 'px';
+    });
+
+    // QR Colors
+    document.querySelectorAll('#fgColors .color-swatch').forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        document.querySelectorAll('#fgColors .color-swatch').forEach(s => s.classList.remove('active'));
+        swatch.classList.add('active');
+        state.qrColor = swatch.dataset.color;
+      });
+    });
+
+    document.querySelectorAll('#bgColors .color-swatch').forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        document.querySelectorAll('#bgColors .color-swatch').forEach(s => s.classList.remove('active'));
+        swatch.classList.add('active');
+        state.qrBgColor = swatch.dataset.color;
+      });
+    });
+
+    // Toggles
+    document.querySelectorAll('.toggle').forEach(toggle => {
+      toggle.addEventListener('click', () => {
+        toggle.classList.toggle('active');
+        const key = toggle.dataset.toggle;
+        state[key] = toggle.classList.contains('active');
+      });
+    });
+
+    // Update claims based on credential type
+    function updateClaimsForType() {
+      const claimsMap = {
+        'Age Verification': ['birth_year', 'age_over_18', 'country'],
+        'Student ID': ['expiry_year', 'university', 'is_student'],
+        'Trial': ['trial_period', 'trial_type'],
+        'Email Alternative': ['email']
+      };
+      
+      // Reset all
+      document.querySelectorAll('#claims .chip').forEach(c => {
+        c.classList.remove('active');
+        if (claimsMap[state.credentialType]?.includes(c.dataset.value)) {
+          c.classList.add('active');
+        }
+      });
+      
+      state.claims = claimsMap[state.credentialType] || [];
+    }
+
+    // ============================================
+    // Verification Flow
+    // ============================================
+    async function startVerification() {
+      const btn = document.getElementById('startBtn');
+      const resultBox = document.getElementById('resultBox');
+      const qrDisplay = document.getElementById('qrDisplay');
+      
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>';
+      resultBox.textContent = 'Creating session...';
+      resultBox.className = 'result-box';
+      
+      log('Starting verification flow...');
+      log(`Request: ${state.credentialType}, claims: ${state.claims.join(', ')}`);
+      
+      try {
+        // Re-init with current config
+        ZeroAuth.init({
+          relayUrl: document.getElementById('relayUrl').value,
+          verifierName: document.getElementById('verifierName').value,
+          timeout: parseInt(document.getElementById('timeout').value)
+        });
+
+        // Create session
+        const session = await ZeroAuth.createSession({
+          credentialType: state.credentialType,
+          claims: state.claims,
+          useCase: state.useCase
+        });
+
+        state.session = session;
+        state.currentQrPayload = session.qrPayload;
+        
+        log(`Session created: ${session.sessionId}`);
+        
+        // Generate QR
+        const qrDataUrl = await ZeroAuth.generateQRBase64(session.qrPayload, {
+          width: state.qrSize,
+          color: state.qrColor,
+          backgroundColor: state.qrBgColor
+        });
+        
+        qrDisplay.innerHTML = `
+          <div class="qr-image">
+            <img src="${qrDataUrl}" alt="QR Code" style="width:${state.qrSize}px;height:${state.qrSize}px">
+          </div>
+          <div style="text-align: center; font-size: 11px; color: var(--text-muted);">
+            Session: ${session.sessionId.substring(0, 12)}...<br>
+            Expires: ${new Date(session.expiresAt).toLocaleTimeString()}
+          </div>
+        `;
+        
+        resultBox.textContent = 'QR code generated. Scan with wallet to verify.';
+        resultBox.className = 'result-box';
+        
+        // Show deep link if enabled
+        if (state.deepLink) {
+          const deepLink = ZeroAuth.generateDeeplink(session.sessionId);
+          log(`Deep link: ${deepLink}`, 'info');
+        }
+
+        // Poll for completion if enabled
+        if (state.autoPoll) {
+          pollForCompletion(session.sessionId);
+        }
+        
+      } catch (error) {
+        log(`Error: ${error.message}`, 'error');
+        resultBox.textContent = 'Error: ' + error.message;
+        resultBox.className = 'result-box error';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Start Verification';
+      }
+    }
+
+    async function pollForCompletion(sessionId) {
+      log('Starting poll for completion...');
+      const resultBox = document.getElementById('resultBox');
+      
+      const poll = setInterval(async () => {
+        try {
+          const status = await ZeroAuth.getSessionStatus(sessionId);
+          log(`Status: ${status.status}`);
+          
+          if (status.status === 'COMPLETED') {
+            clearInterval(poll);
+            resultBox.textContent = JSON.stringify(status, null, 2);
+            resultBox.className = 'result-box success';
+            log('Verification completed!', 'info');
+          } else if (status.status === 'EXPIRED' || status.status === 'CANCELLED') {
+            clearInterval(poll);
+            resultBox.textContent = `Session ${status.status.toLowerCase()}`;
+            resultBox.className = 'result-box error';
+          }
+        } catch (e) {
+          // Ignore poll errors
+        }
+      }, 2000);
+    }
+
+    function resetDemo() {
+      state.session = null;
+      state.currentQrPayload = null;
+      document.getElementById('qrDisplay').innerHTML = '<div style="color: var(--text-dim); font-size: 13px;">Click "Start Verification" to generate QR</div>';
+      document.getElementById('resultBox').textContent = 'Ready to start verification...';
+      document.getElementById('resultBox').className = 'result-box';
+      log('Demo reset');
+    }
+
+    // ============================================
+    // Code Generation
+    // ============================================
+    function generateCode() {
+      const claimsStr = state.claims.join("', '");
+      const code = `
+// Initialize ZeroAuth
+const zeroAuth = new ZeroAuth({
+  relayUrl: '${document.getElementById('relayUrl').value}',
+  verifierName: '${document.getElementById('verifierName').value}',
+  timeout: ${document.getElementById('timeout').value}
+});
+
+// Start verification
+const result = await zeroAuth.verify({
+  credentialType: '${state.credentialType}',
+  claims: ['${claimsStr}'],
+  useCase: '${state.useCase}'
+});
+
+if (result.success) {
+  console.log('Verified!', result.claims);
+}
+`.trim();
+      
+      document.getElementById('generatedCode').textContent = code;
+    }
+
+    function copyGeneratedCode() {
+      navigator.clipboard.writeText(document.getElementById('generatedCode').textContent);
+      log('Code copied to clipboard');
+    }
+
+    // ============================================
+    // API Tester
+    // ============================================
+    async function testApi(endpoint) {
+      const responseBox = document.getElementById('apiResponse');
+      const relayUrl = document.getElementById('relayUrl').value;
+      
+      responseBox.textContent = 'Sending request...';
+      
+      try {
+        let url, options = {};
+        
+        if (endpoint === 'sessions') {
+          url = relayUrl + document.getElementById('apiSessions').value;
+          const body = document.getElementById('apiSessionsBody').value;
+          options = {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: body
+          };
+        } else if (endpoint === 'sessionGet') {
+          const id = prompt('Enter session ID:');
+          if (!id) return;
+          url = relayUrl + document.getElementById('apiSessionGet').value + id;
+          options = { method: 'GET' };
+        }
+        
+        const res = await fetch(url, options);
+        const data = await res.json();
+        
+        responseBox.textContent = JSON.stringify(data, null, 2);
+        responseBox.className = 'result-box ' + (res.ok ? 'success' : 'error');
+        log(`API ${endpoint}: ${res.status}`);
+        
+      } catch (e) {
+        responseBox.textContent = 'Error: ' + e.message;
+        responseBox.className = 'result-box error';
+      }
+    }
+
+    // ============================================
+    // QR Inspector
+    // ============================================
+    function decodeQrInput() {
+      const input = document.getElementById('qrPayloadInput').value;
+      const decodedBox = document.getElementById('qrDecoded');
+      const validationBox = document.getElementById('qrValidation');
+      
+      try {
+        const payload = JSON.parse(input);
+        
+        // Show decoded
+        decodedBox.textContent = JSON.stringify(payload, null, 2);
+        
+        // Validate
+        const validation = ZeroAuth.validateQRPayload(input);
+        if (validation.valid) {
+          validationBox.textContent = '✅ Valid QR payload\n\nFields:\n' + Object.keys(payload).join('\n');
+          validationBox.style.borderColor = 'var(--success)';
+        } else {
+          validationBox.textContent = '❌ Invalid: ' + validation.error;
+          validationBox.style.borderColor = 'var(--error)';
+        }
+        
+        log('QR payload decoded');
+        
+      } catch (e) {
+        decodedBox.textContent = 'Error: ' + e.message;
+        validationBox.textContent = 'Not a valid JSON';
+      }
+    }
+
+    // ============================================
+    // Sessions
+    // ============================================
+    function refreshSessions() {
+      const tbody = document.getElementById('sessionsTable');
+      
+      if (state.session) {
+        tbody.innerHTML = `
+          <tr>
+            <td style="font-family:monospace;font-size:11px;">${state.session.sessionId}</td>
+            <td>${document.getElementById('verifierName').value}</td>
+            <td>${state.credentialType}</td>
+            <td><span class="session-status pending">PENDING</span></td>
+            <td>${state.claims.join(', ')}</td>
+            <td><button class="btn btn-secondary btn-sm" onclick="cancelSession('${state.session.sessionId}')">Cancel</button></td>
+          </tr>
+        `;
+      } else {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No active sessions. Start a verification above.</td></tr>';
+      }
+      
+      log('Sessions refreshed');
+    }
+
+    async function cancelSession(sessionId) {
+      try {
+        await ZeroAuth.cancelSession(sessionId);
+        log(`Session ${sessionId} cancelled`);
+        state.session = null;
+        refreshSessions();
+      } catch (e) {
+        log(`Cancel failed: ${e.message}`, 'error');
+      }
+    }
+
+    // ============================================
+    // Console
+    // ============================================
+    function clearConsole() {
+      document.getElementById('consoleBody').innerHTML = '<div class="console-line"><span class="console-time">--:--</span><span class="console-msg">Console cleared</span></div>';
+    }
+
+    // Initialize on load - wait for SDK
+    window.addEventListener('zeroAuthReady', init);
+    // Fallback in case DOMContentLoaded fires after
+    if (window.ZeroAuth) init();
+  </script>
+</body>
+</html>
