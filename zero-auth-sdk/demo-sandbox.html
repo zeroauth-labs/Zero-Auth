@@ -854,6 +854,13 @@
           </div>
           <div class="toggle-row">
             <div class="toggle-info">
+              <div class="toggle-label">Demo Mode</div>
+              <div class="toggle-desc">Simulate without backend</div>
+            </div>
+            <div class="toggle active" data-toggle="demoMode"></div>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
               <div class="toggle-label">Debug Logging</div>
               <div class="toggle-desc">Log to console panel</div>
             </div>
@@ -1111,6 +1118,7 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
       deepLink: false,
       debug: true,
       autoPoll: true,
+      demoMode: true,  // Default to demo mode since relay is down
       session: null,
       currentQrPayload: null
     };
@@ -1257,26 +1265,60 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
       
       log('Starting verification flow...');
       log(`Request: ${state.credentialType}, claims: ${state.claims.join(', ')}`);
+      if (state.demoMode) log('Running in DEMO MODE (offline)', 'info');
       
       try {
-        // Re-init with current config
-        ZeroAuth.init({
-          relayUrl: document.getElementById('relayUrl').value,
-          verifierName: document.getElementById('verifierName').value,
-          timeout: parseInt(document.getElementById('timeout').value)
-        });
+        let session;
+        
+        if (state.demoMode) {
+          // DEMO MODE - simulate without backend
+          const sessionId = 'demo-' + Math.random().toString(36).substr(2, 9);
+          const nonce = Math.random().toString(36).substr(2, 16);
+          const verifierName = document.getElementById('verifierName').value;
+          const timeout = parseInt(document.getElementById('timeout').value);
+          
+          const qrPayload = {
+            v: 1,
+            action: 'verify',
+            session_id: sessionId,
+            nonce: nonce,
+            verifier: {
+              name: verifierName,
+              did: 'did:web:demo.zeroauth',
+              callback: 'https://demo.zeroauth/api/callback'
+            },
+            required_claims: state.claims,
+            credential_type: state.credentialType,
+            expires_at: Math.floor(Date.now() / 1000) + timeout,
+            use_case: state.useCase
+          };
+          
+          session = {
+            sessionId: sessionId,
+            qrPayload: JSON.stringify(qrPayload),
+            expiresAt: Date.now() + timeout * 1000
+          };
+          
+          log(`Demo session created: ${sessionId}`);
+        } else {
+          // REAL MODE - use actual relay
+          ZeroAuth.init({
+            relayUrl: document.getElementById('relayUrl').value,
+            verifierName: document.getElementById('verifierName').value,
+            timeout: parseInt(document.getElementById('timeout').value)
+          });
 
-        // Create session
-        const session = await ZeroAuth.createSession({
-          credentialType: state.credentialType,
-          claims: state.claims,
-          useCase: state.useCase
-        });
+          session = await ZeroAuth.createSession({
+            credentialType: state.credentialType,
+            claims: state.claims,
+            useCase: state.useCase
+          });
+          
+          log(`Session created: ${session.sessionId}`);
+        }
 
         state.session = session;
         state.currentQrPayload = session.qrPayload;
-        
-        log(`Session created: ${session.sessionId}`);
         
         // Generate QR
         const qrDataUrl = await ZeroAuth.generateQRBase64(session.qrPayload, {
@@ -1290,18 +1332,41 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
             <img src="${qrDataUrl}" alt="QR Code" style="width:${state.qrSize}px;height:${state.qrSize}px">
           </div>
           <div style="text-align: center; font-size: 11px; color: var(--text-muted);">
-            Session: ${session.sessionId.substring(0, 12)}...<br>
+            Session: ${session.sessionId.substring(0, 16)}<br>
             Expires: ${new Date(session.expiresAt).toLocaleTimeString()}
           </div>
         `;
         
-        resultBox.textContent = 'QR code generated. Scan with wallet to verify.';
-        resultBox.className = 'result-box';
-        
-        // Show deep link if enabled
-        if (state.deepLink) {
-          const deepLink = ZeroAuth.generateDeeplink(session.sessionId);
-          log(`Deep link: ${deepLink}`, 'info');
+        if (state.demoMode) {
+          resultBox.textContent = '✅ Demo QR generated! (Relay unavailable - showing mock data)';
+          resultBox.className = 'result-box';
+          
+          // Simulate verification after delay in demo mode
+          if (state.autoPoll) {
+            log('Demo mode: simulating verification in 3 seconds...', 'info');
+            setTimeout(() => {
+              const mockResult = {
+                success: true,
+                sessionId: session.sessionId,
+                claims: {
+                  birth_year: '1995',
+                  country: 'US'
+                }
+              };
+              resultBox.textContent = JSON.stringify(mockResult, null, 2);
+              resultBox.className = 'result-box success';
+              log('Demo verification completed!', 'info');
+            }, 3000);
+          }
+        } else {
+          resultBox.textContent = 'QR code generated. Scan with wallet to verify.';
+          resultBox.className = 'result-box';
+          
+          // Show deep link if enabled
+          if (state.deepLink) {
+            const deepLink = ZeroAuth.generateDeeplink(session.sessionId);
+            log(`Deep link: ${deepLink}`, 'info');
+          }
         }
 
         // Poll for completion if enabled
