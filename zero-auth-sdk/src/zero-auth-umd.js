@@ -357,6 +357,122 @@
      */
     getConfig: function() {
       return Object.assign({}, config);
+    },
+
+    /**
+     * Create a verification session
+     */
+    createSession: function(options) {
+      var self = this;
+      return new Promise(function(resolve, reject) {
+        if (!config.relayUrl) {
+          reject(new Error('ZeroAuth not initialized'));
+          return;
+        }
+
+        var request = Object.assign({
+          credentialType: config.credentialType,
+          claims: config.claims,
+          useCase: 'LOGIN',
+          timeout: config.timeout
+        }, options);
+
+        fetch(config.relayUrl + '/api/v1/sessions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': config.apiKey || ''
+          },
+          body: JSON.stringify({
+            verifier_name: config.verifierName,
+            credential_type: request.credentialType,
+            required_claims: request.claims,
+            use_case: request.useCase,
+            timeout: request.timeout
+          })
+        })
+        .then(function(response) {
+          if (!response.ok) throw new Error('Failed: ' + response.status);
+          return response.json();
+        })
+        .then(function(data) {
+          resolve({
+            sessionId: data.session_id,
+            qrPayload: data.qr_payload,
+            expiresAt: Date.now() + (request.timeout || config.timeout) * 1000
+          });
+        })
+        .catch(reject);
+      });
+    },
+
+    /**
+     * Generate QR code as base64
+     */
+    generateQRBase64: async function(payload, options) {
+      var opts = {
+        width: options?.width || 200,
+        margin: 1,
+        color: {
+          dark: options?.color || '#000000',
+          light: options?.backgroundColor || '#ffffff'
+        }
+      };
+      return await QRCodeLib.generate(payload, opts.width);
+    },
+
+    /**
+     * Generate deep link for wallet
+     */
+    generateDeeplink: function(sessionId) {
+      return 'zeroauth://verify?session=' + sessionId;
+    },
+
+    /**
+     * Get session status
+     */
+    getSessionStatus: function(sessionId) {
+      return fetch(config.relayUrl + '/api/v1/sessions/' + sessionId, {
+        headers: { 'X-API-Key': config.apiKey || '' }
+      })
+      .then(function(response) {
+        if (!response.ok) throw new Error('Session not found');
+        return response.json();
+      })
+      .then(function(data) {
+        return {
+          sessionId: data.session_id,
+          status: data.status,
+          claims: data.proof ? data.proof.attributes : null
+        };
+      });
+    },
+
+    /**
+     * Cancel a session
+     */
+    cancelSession: function(sessionId) {
+      return fetch(config.relayUrl + '/api/v1/sessions/' + sessionId, {
+        method: 'DELETE',
+        headers: { 'X-API-Key': config.apiKey || '' }
+      })
+      .then(function() { return true; })
+      .catch(function() { return true; });
+    },
+
+    /**
+     * Validate QR payload
+     */
+    validateQRPayload: function(payload) {
+      try {
+        var data = JSON.parse(payload);
+        if (!data.v || !data.session_id || !data.verifier) {
+          return { valid: false, error: 'Missing required fields' };
+        }
+        return { valid: true, data: data };
+      } catch (e) {
+        return { valid: false, error: 'Invalid JSON' };
+      }
     }
   };
 
@@ -425,11 +541,27 @@
     });
   }
 
+  // ============================================
+  // Standalone validateQRPayload function
+  // ============================================
+  function validateQRPayload(payload) {
+    try {
+      var data = JSON.parse(payload);
+      if (!data.v || !data.session_id || !data.verifier) {
+        return { valid: false, error: 'Missing required fields' };
+      }
+      return { valid: true, data: data };
+    } catch (e) {
+      return { valid: false, error: 'Invalid JSON' };
+    }
+  }
+
   // Export
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = ZeroAuth;
+    module.exports = { ZeroAuth: ZeroAuth, validateQRPayload: validateQRPayload };
   } else {
     global.ZeroAuth = ZeroAuth;
+    global.validateQRPayload = validateQRPayload;
   }
 
 })(typeof window !== 'undefined' ? window : this);
