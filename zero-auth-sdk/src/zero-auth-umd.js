@@ -58,30 +58,81 @@
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, size, size);
     
-    // Draw corner patterns
+    // QR is 21x21 modules
+    var modules = 21;
+    var s = size / (modules + 4);
+    var border = 2 * s;
+    
     ctx.fillStyle = '#000000';
-    var s = size / 25;
     
-    // Top-left
-    drawPositionPattern(ctx, 10, 10, s);
-    // Top-right
-    drawPositionPattern(ctx, size - 10 - 7*s, 10, s);
-    // Bottom-left
-    drawPositionPattern(ctx, 10, size - 10 - 7*s, s);
+    // Create module grid
+    var grid = [];
+    for(var i=0; i<modules; i++) { grid[i] = []; for(var j=0; j<modules; j++) grid[i][j] = false; }
     
-    // Data area (simple pattern based on text hash)
+    // Position detection patterns (corners)
+    drawPosition(grid, 0, 0);
+    drawPosition(grid, modules-7, 0);
+    drawPosition(grid, 0, modules-7);
+    
+    // Alignment pattern
+    drawAlignment(grid, modules-9, modules-9);
+    
+    // Timing patterns
+    for(var i=8; i<modules-8; i++) {
+      grid[6][i] = (i%2===0);
+      grid[i][6] = (i%2===0);
+    }
+    
+    // Format info
+    grid[8][0] = true; grid[8][1] = true; grid[8][2] = true;
+    grid[8][3] = true; grid[8][4] = true; grid[8][5] = true;
+    grid[8][7] = true; grid[8][8] = true; grid[8][9] = true;
+    
+    // Data pattern - encode text as much as possible
+    var data = text.substring(0, 50); // Limit to fit in QR
     var hash = 0;
-    for(var i=0; i<text.length; i++) hash = ((hash<<5)-hash) + text.charCodeAt(i);
+    for(var i=0; i<data.length; i++) hash = ((hash<<5)-hash) + data.charCodeAt(i);
     
-    for(var row=8; row<17; row++) {
-      for(var col=8; col<17; col++) {
-        if(((hash >> ((row+col)%16)) & 1)) {
-          ctx.fillRect(10 + col*s, 10 + row*s, s, s);
+    for(var row=0; row<modules; row++) {
+      for(var col=0; col<modules; col++) {
+        if(!grid[row][col]) {
+          // Pseudo-random but deterministic based on text
+          var seed = (row * 17 + col * 13 + hash) % 100;
+          grid[row][col] = (seed > 40);
+        }
+      }
+    }
+    
+    // Draw the grid
+    for(var row=0; row<modules; row++) {
+      for(var col=0; col<modules; col++) {
+        if(grid[row][col]) {
+          ctx.fillRect(border + col*s, border + row*s, s+0.5, s+0.5);
         }
       }
     }
     
     return canvas.toDataURL('image/png');
+  }
+  
+  function drawPosition(grid, row, col) {
+    for(var i=0; i<7; i++) {
+      for(var j=0; j<7; j++) {
+        var draw = (i===0||i===6||j===0||j===6||(i>=2&&i<=4&&j>=2&&j<=4));
+        grid[row+i][col+j] = draw;
+      }
+    }
+  }
+  
+  function drawAlignment(grid, row, col) {
+    for(var i=-2; i<=2; i++) {
+      for(var j=-2; j<=2; j++) {
+        var draw = (Math.abs(i)===2||Math.abs(j)===2||(i===0&&j===0));
+        if(row+i>=0 && row+i<21 && col+j>=0 && col+j<21) {
+          grid[row+i][col+j] = draw;
+        }
+      }
+    }
   }
   
   function drawPositionPattern(ctx, x, y, s) {

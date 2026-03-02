@@ -1295,19 +1295,16 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
           log('QR generation skipped: ' + e.message, 'warn');
         }
         
-        // Show session info and QR payload (without image - CDN blocked)
+        // Show QR image and session info
         var payloadObj = typeof qrPayloadStr === 'string' ? JSON.parse(qrPayloadStr) : qrPayloadStr;
+        var qrHtml = qrDataUrl ? `<img src="${qrDataUrl}" alt="QR Code" style="width:${state.qrSize}px;height:${state.qrSize}px;border-radius:8px;margin-bottom:12px;">` : '';
         qrDisplay.innerHTML = `
           <div style="text-align: center; padding: 20px;">
-            <div style="font-size: 48px; margin-bottom: 12px;">📱</div>
+            ${qrHtml}
             <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">Session Created</div>
             <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">
               ID: <code style="color: var(--primary);">${session.sessionId}</code><br>
               Expires: ${new Date(session.expiresAt).toLocaleTimeString()}
-            </div>
-            <div style="text-align: left; font-size: 10px; background: var(--bg-dark); padding: 8px; border-radius: 4px; overflow: auto; max-height: 100px;">
-              <strong>QR Payload:</strong><br>
-              <code>${JSON.stringify(payloadObj, null, 2).substring(0, 500)}</code>
             </div>
           </div>
         `;
