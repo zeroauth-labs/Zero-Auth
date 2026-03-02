@@ -137,19 +137,6 @@
     }
     return Math.abs(hash);
   }
-        if ((i < 7 && j < 7) || (i < 7 && j > 17) || (i > 17 && j < 7)) {
-          if ((i === 0 || i === 6 || j === 0 || j === 6) ||
-              (i === 2 && j === 2) || (i === 2 && j === 4) ||
-              (i === 4 && j === 2) || (i === 4 && j === 4)) {
-            ctx.fillRect(i * s + 10, j * s + 10, s, s);
-          }
-        } else if ((i + j) % 3 === 0) {
-          ctx.fillRect(i * s + 10, j * s + 10, s, s);
-        }
-      }
-    }
-    return canvas.toDataURL('image/png');
-  }
 
   // ============================================
   // Modal UI
