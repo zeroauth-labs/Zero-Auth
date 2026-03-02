@@ -1258,11 +1258,16 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
       
       try {
         // Re-init with current config
+        const relayUrl = document.getElementById('relayUrl').value;
+        log('Using relay URL: ' + relayUrl);
+        
         ZeroAuth.init({
-          relayUrl: document.getElementById('relayUrl').value,
+          relayUrl: relayUrl,
           verifierName: document.getElementById('verifierName').value,
           timeout: parseInt(document.getElementById('timeout').value)
         });
+
+        log('Creating session...');
 
         // Create session
         const session = await ZeroAuth.createSession({
@@ -1271,6 +1276,7 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
           useCase: state.useCase
         });
 
+        log('Session created: ' + JSON.stringify(session).substring(0, 100));
         state.session = session;
         state.currentQrPayload = session.qrPayload;
         
@@ -1309,6 +1315,7 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
         
       } catch (error) {
         log(`Error: ${error.message}`, 'error');
+        log(`Stack: ${error.stack}`, 'error');
         resultBox.textContent = 'Error: ' + error.message;
         resultBox.className = 'result-box error';
       } finally {
