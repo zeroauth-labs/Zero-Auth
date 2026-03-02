@@ -1,6 +1,6 @@
 import resolve from '@rollup/plugin-node-resolve';
+import commonjs from '@rollup/plugin-commonjs';
 import typescript from '@rollup/plugin-typescript';
-import peerDepsExternal from 'rollup-plugin-peer-deps-external';
 
 export default {
   input: 'src/index.tsx',
@@ -15,9 +15,15 @@ export default {
       }
     }
   ],
+  external: ['react', 'react-dom'],
   plugins: [
-    peerDepsExternal(),
-    resolve(),
+    resolve({
+      preferBuiltins: false,
+      browser: true
+    }),
+    commonjs({
+      include: /node_modules\/qrcode/
+    }),
     typescript({
       tsconfig: './tsconfig.json',
       declaration: false

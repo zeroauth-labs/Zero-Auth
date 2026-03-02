@@ -10,6 +10,7 @@
         "install:all": "npm install && cd zero-auth-relay && npm install && cd ../zero-auth-sdk && npm install && cd ../zero-auth-wallet && npm install"
     },
     "devDependencies": {
+        "@rollup/plugin-commonjs": "^29.0.0",
         "concurrently": "^8.2.2",
         "wait-on": "^7.2.0"
     }
