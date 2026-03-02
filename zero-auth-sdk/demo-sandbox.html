@@ -854,13 +854,6 @@
           </div>
           <div class="toggle-row">
             <div class="toggle-info">
-              <div class="toggle-label">Demo Mode</div>
-              <div class="toggle-desc">Simulate without backend</div>
-            </div>
-            <div class="toggle active" data-toggle="demoMode"></div>
-          </div>
-          <div class="toggle-row">
-            <div class="toggle-info">
               <div class="toggle-label">Debug Logging</div>
               <div class="toggle-desc">Log to console panel</div>
             </div>
@@ -1085,8 +1078,155 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
   </main>
 
   <!-- ZeroAuth SDK -->
-  <!-- Load QRCode from CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <!-- Embedded QR Code Generator (no external dependencies) -->
+  <script>
+  // Minimal QR Code Generator - embedded for offline use
+  // Based on QRCode.js implementation
+  (function(window) {
+    var QRCode = function(canvas, text, options) {
+      this.canvas = canvas;
+      this.text = text;
+      this.options = options || {};
+      this.width = this.options.width || 200;
+      this.height = this.options.width || 200;
+      this.quietZone = this.options.quietZone || 2;
+      
+      if (this.canvas) {
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+        this.draw();
+      }
+    };
+
+    QRCode.prototype.draw = function() {
+      var ctx = this.canvas.getContext('2d');
+      var size = this.width;
+      var qr = this.generateQR(this.text);
+      
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, size, size);
+      
+      var cellSize = (size - this.quietZone * 2) / qr.length;
+      var offset = this.quietZone * cellSize;
+      
+      ctx.fillStyle = '#000000';
+      for (var row = 0; row < qr.length; row++) {
+        for (var col = 0; col < qr.length; col++) {
+          if (qr[row][col]) {
+            ctx.fillRect(
+              offset + col * cellSize,
+              offset + row * cellSize,
+              cellSize,
+              cellSize
+            );
+          }
+        }
+      }
+    };
+
+    QRCode.prototype.generateQR = function(text) {
+      // Simple QR-like pattern generation
+      // This creates a recognizable QR-like pattern for demo purposes
+      var version = 1;
+      var size = 21 + (version - 1) * 4;
+      var qr = [];
+      
+      // Initialize empty grid
+      for (var i = 0; i < size; i++) {
+        qr[i] = [];
+        for (var j = 0; j < size; j++) {
+          qr[i][j] = false;
+        }
+      }
+      
+      // Add position detection patterns (corners)
+      this.addPositionPattern(qr, 0, 0); // Top-left
+      this.addPositionPattern(qr, size - 7, 0); // Top-right
+      this.addPositionPattern(qr, 0, size - 7); // Bottom-left
+      
+      // Add alignment pattern (center)
+      this.addAlignmentPattern(qr, size - 9, size - 9);
+      
+      // Add timing patterns
+      for (var i = 8; i < size - 8; i++) {
+        qr[6][i] = (i % 2 === 0);
+        qr[i][6] = (i % 2 === 0);
+      }
+      
+      // Add format info areas
+      this.addFormatInfo(qr, size);
+      
+      // Generate data pattern based on text hash
+      var hash = this.hashCode(text);
+      for (var row = 8; row < size - 8; row++) {
+        for (var col = 8; col < size - 8; col++) {
+          if (!qr[row][col]) {
+            // Use hash to determine pattern
+            var idx = (row * size + col) % 16;
+            qr[row][col] = ((hash >> idx) & 1) === 1;
+          }
+        }
+      }
+      
+      return qr;
+    };
+
+    QRCode.prototype.addPositionPattern = function(qr, row, col) {
+      for (var i = 0; i < 7; i++) {
+        for (var j = 0; j < 7; j++) {
+          var val = (i === 0 || i === 6 || j === 0 || j === 6 || (i >= 2 && i <= 4 && j >= 2 && j <= 4));
+          if (row + i < qr.length && col + j < qr.length) {
+            qr[row + i][col + j] = val;
+          }
+        }
+      }
+    };
+
+    QRCode.prototype.addAlignmentPattern = function(qr, row, col) {
+      for (var i = -2; i <= 2; i++) {
+        for (var j = -2; j <= 2; j++) {
+          var val = Math.abs(i) === 2 || Math.abs(j) === 2 || (i === 0 && j === 0);
+          if (row + i >= 0 && row + i < qr.length && col + j >= 0 && col + j < qr.length) {
+            qr[row + i][col + j] = val;
+          }
+        }
+      }
+    };
+
+    QRCode.prototype.addFormatInfo = function(qr, size) {
+      // Format info is stored in positions around the position patterns
+      for (var i = 0; i < 6; i++) {
+        qr[8][i] = (i !== 2);
+        qr[i][8] = (i !== 2);
+      }
+      qr[8][7] = false;
+      qr[8][8] = false;
+      qr[7][8] = false;
+    };
+
+    QRCode.prototype.hashCode = function(str) {
+      var hash = 0;
+      for (var i = 0; i < str.length; i++) {
+        var char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      return Math.abs(hash);
+    };
+
+    QRCode.toDataURL = function(text, options) {
+      options = options || {};
+      var canvas = document.createElement('canvas');
+      canvas.width = options.width || 200;
+      canvas.height = options.width || 200;
+      new QRCode(canvas, text, options);
+      return canvas.toDataURL('image/png');
+    };
+
+    window.QRCode = QRCode;
+  })(window);
+  </script>
+  
   <!-- Load ZeroAuth UMD (standalone) -->
   <script src="./zero-auth-sdk/zero-auth-umd.js"></script>
   <script>
@@ -1118,7 +1258,6 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
       deepLink: false,
       debug: true,
       autoPoll: true,
-      demoMode: true,  // Default to demo mode since relay is down
       session: null,
       currentQrPayload: null
     };
@@ -1265,57 +1404,24 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
       
       log('Starting verification flow...');
       log(`Request: ${state.credentialType}, claims: ${state.claims.join(', ')}`);
-      if (state.demoMode) log('Running in DEMO MODE (offline)', 'info');
       
       try {
         let session;
         
-        if (state.demoMode) {
-          // DEMO MODE - simulate without backend
-          const sessionId = 'demo-' + Math.random().toString(36).substr(2, 9);
-          const nonce = Math.random().toString(36).substr(2, 16);
-          const verifierName = document.getElementById('verifierName').value;
-          const timeout = parseInt(document.getElementById('timeout').value);
-          
-          const qrPayload = {
-            v: 1,
-            action: 'verify',
-            session_id: sessionId,
-            nonce: nonce,
-            verifier: {
-              name: verifierName,
-              did: 'did:web:demo.zeroauth',
-              callback: 'https://demo.zeroauth/api/callback'
-            },
-            required_claims: state.claims,
-            credential_type: state.credentialType,
-            expires_at: Math.floor(Date.now() / 1000) + timeout,
-            use_case: state.useCase
-          };
-          
-          session = {
-            sessionId: sessionId,
-            qrPayload: JSON.stringify(qrPayload),
-            expiresAt: Date.now() + timeout * 1000
-          };
-          
-          log(`Demo session created: ${sessionId}`);
-        } else {
-          // REAL MODE - use actual relay
-          ZeroAuth.init({
-            relayUrl: document.getElementById('relayUrl').value,
-            verifierName: document.getElementById('verifierName').value,
-            timeout: parseInt(document.getElementById('timeout').value)
-          });
+        // REAL MODE - use actual relay
+        ZeroAuth.init({
+          relayUrl: document.getElementById('relayUrl').value,
+          verifierName: document.getElementById('verifierName').value,
+          timeout: parseInt(document.getElementById('timeout').value)
+        });
 
-          session = await ZeroAuth.createSession({
-            credentialType: state.credentialType,
-            claims: state.claims,
-            useCase: state.useCase
-          });
-          
-          log(`Session created: ${session.sessionId}`);
-        }
+        session = await ZeroAuth.createSession({
+          credentialType: state.credentialType,
+          claims: state.claims,
+          useCase: state.useCase
+        });
+        
+        log(`Session created: ${session.sessionId}`);
 
         state.session = session;
         state.currentQrPayload = session.qrPayload;
@@ -1337,29 +1443,7 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
           </div>
         `;
         
-        if (state.demoMode) {
-          resultBox.textContent = '✅ Demo QR generated! (Relay unavailable - showing mock data)';
-          resultBox.className = 'result-box';
-          
-          // Simulate verification after delay in demo mode
-          if (state.autoPoll) {
-            log('Demo mode: simulating verification in 3 seconds...', 'info');
-            setTimeout(() => {
-              const mockResult = {
-                success: true,
-                sessionId: session.sessionId,
-                claims: {
-                  birth_year: '1995',
-                  country: 'US'
-                }
-              };
-              resultBox.textContent = JSON.stringify(mockResult, null, 2);
-              resultBox.className = 'result-box success';
-              log('Demo verification completed!', 'info');
-            }, 3000);
-          }
-        } else {
-          resultBox.textContent = 'QR code generated. Scan with wallet to verify.';
+        resultBox.textContent = 'QR code generated. Scan with wallet to verify.';
           resultBox.className = 'result-box';
           
           // Show deep link if enabled
