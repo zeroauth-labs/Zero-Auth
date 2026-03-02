@@ -1077,31 +1077,20 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
     </div>
   </main>
 
-  <!-- ZeroAuth SDK - ESM with import map for qrcode -->
-  <script type="importmap">
-  {
-    "imports": {
-      "qrcode": "https://esm.sh/qrcode@1.5.3"
-    }
-  }
-  </script>
-  <script type="module">
-    import QRCode from 'qrcode';
-    
-    // Patch the SDK to use this QRCode
-    window.QRCode = QRCode;
-    
-    // Now load the UMD SDK
-    const script = document.createElement('script');
-    script.src = './zero-auth-sdk/zero-auth-umd.js';
-    script.onload = function() {
-      console.log('ZeroAuth loaded!');
-      window.dispatchEvent(new Event('zeroAuthReady'));
-    };
-    script.onerror = function() {
-      console.error('ZeroAuth failed to load');
-    };
-    document.head.appendChild(script);
+  <!-- ZeroAuth SDK -->
+  <script src="./zero-auth-sdk/zero-auth-umd.js"></script>
+  <script>
+    // Wait for ZeroAuth to load
+    window.addEventListener('DOMContentLoaded', function() {
+      setTimeout(function() {
+        if (window.ZeroAuth) {
+          console.log('ZeroAuth loaded!');
+          window.dispatchEvent(new Event('zeroAuthReady'));
+        } else {
+          console.error('ZeroAuth failed to load');
+        }
+      }, 100);
+    });
   </script>
   
   <script>
@@ -1299,17 +1288,23 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
           backgroundColor: state.qrBgColor
         });
         
+        // Show session info and QR payload (without image - CDN blocked)
         qrDisplay.innerHTML = `
-          <div class="qr-image">
-            <img src="${qrDataUrl}" alt="QR Code" style="width:${state.qrSize}px;height:${state.qrSize}px">
-          </div>
-          <div style="text-align: center; font-size: 11px; color: var(--text-muted);">
-            Session: ${session.sessionId.substring(0, 12)}...<br>
-            Expires: ${new Date(session.expiresAt).toLocaleTimeString()}
+          <div style="text-align: center; padding: 20px;">
+            <div style="font-size: 48px; margin-bottom: 12px;">📱</div>
+            <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">Session Created</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">
+              ID: <code style="color: var(--primary);">${session.sessionId}</code><br>
+              Expires: ${new Date(session.expiresAt).toLocaleTimeString()}
+            </div>
+            <div style="text-align: left; font-size: 10px; background: var(--bg-dark); padding: 8px; border-radius: 4px; overflow: auto; max-height: 100px;">
+              <strong>QR Payload:</strong><br>
+              <code>${JSON.stringify(JSON.parse(session.qrPayload), null, 2).substring(0, 500)}</code>
+            </div>
           </div>
         `;
         
-        resultBox.textContent = 'QR code generated. Scan with wallet to verify.';
+        resultBox.textContent = 'Session created! Copy the session ID or QR payload above to test.';
         resultBox.className = 'result-box';
         
         // Show deep link if enabled
