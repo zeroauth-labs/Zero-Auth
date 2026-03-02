@@ -1295,21 +1295,19 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
           log('QR generation skipped: ' + e.message, 'warn');
         }
         
-        // Show QR image and session info
-        var payloadObj = typeof qrPayloadStr === 'string' ? JSON.parse(qrPayloadStr) : qrPayloadStr;
-        var qrHtml = qrDataUrl ? `<img src="${qrDataUrl}" alt="QR Code" style="width:${state.qrSize}px;height:${state.qrSize}px;border-radius:8px;margin-bottom:12px;">` : '';
+        // Show session info - skip fake QR
         qrDisplay.innerHTML = `
           <div style="text-align: center; padding: 20px;">
-            ${qrHtml}
-            <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">Session Created</div>
+            <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Session Ready for Testing</div>
             <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">
-              ID: <code style="color: var(--primary);">${session.sessionId}</code><br>
-              Expires: ${new Date(session.expiresAt).toLocaleTimeString()}
+              <strong>Session ID:</strong><br>
+              <code style="color: var(--primary); font-size: 12px;">${session.sessionId}</code><br><br>
+              <strong>Expires:</strong> ${new Date(session.expiresAt).toLocaleTimeString()}
             </div>
           </div>
         `;
         
-        resultBox.textContent = 'Session created! Copy the session ID or QR payload above to test.';
+        resultBox.textContent = 'Session created! Use Session ID to test with wallet.';
         resultBox.className = 'result-box';
         
         // Show deep link if enabled
