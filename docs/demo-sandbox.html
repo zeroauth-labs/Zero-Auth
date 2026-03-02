@@ -1277,18 +1277,26 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
 
         log('Session created: ' + JSON.stringify(session).substring(0, 100));
         state.session = session;
-        state.currentQrPayload = session.qrPayload;
+        // Ensure qrPayload is a string
+        var qrPayloadStr = typeof session.qrPayload === 'string' ? session.qrPayload : JSON.stringify(session.qrPayload);
+        state.currentQrPayload = qrPayloadStr;
         
         log(`Session created: ${session.sessionId}`);
         
-        // Generate QR
-        const qrDataUrl = await ZeroAuth.generateQRBase64(session.qrPayload, {
-          width: state.qrSize,
-          color: state.qrColor,
-          backgroundColor: state.qrBgColor
-        });
+        // Generate QR (will fail gracefully without CDN)
+        var qrDataUrl = '';
+        try {
+          qrDataUrl = await ZeroAuth.generateQRBase64(qrPayloadStr, {
+            width: state.qrSize,
+            color: state.qrColor,
+            backgroundColor: state.qrBgColor
+          });
+        } catch(e) {
+          log('QR generation skipped: ' + e.message, 'warn');
+        }
         
         // Show session info and QR payload (without image - CDN blocked)
+        var payloadObj = typeof qrPayloadStr === 'string' ? JSON.parse(qrPayloadStr) : qrPayloadStr;
         qrDisplay.innerHTML = `
           <div style="text-align: center; padding: 20px;">
             <div style="font-size: 48px; margin-bottom: 12px;">📱</div>
@@ -1299,7 +1307,7 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
             </div>
             <div style="text-align: left; font-size: 10px; background: var(--bg-dark); padding: 8px; border-radius: 4px; overflow: auto; max-height: 100px;">
               <strong>QR Payload:</strong><br>
-              <code>${JSON.stringify(JSON.parse(session.qrPayload), null, 2).substring(0, 500)}</code>
+              <code>${JSON.stringify(payloadObj, null, 2).substring(0, 500)}</code>
             </div>
           </div>
         `;
