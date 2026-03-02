@@ -1080,14 +1080,19 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
   <!-- ZeroAuth SDK (bundled with QRCode) -->
   <script src="./zero-auth-sdk/zero-auth-sdk.umd.js"></script>
   <script>
+    // Fix: UMD bundle exports to ZeroAuth.ZeroAuth or ZeroAuth.default
+    if (!window.ZeroAuth) {
+      window.ZeroAuth = window.ZeroAuth || (window.ZeroAuthSDK && window.ZeroAuthSDK.ZeroAuth) || (window.ZeroAuthSDK && window.ZeroAuthSDK.default);
+    }
+    
     // Wait for ZeroAuth to load
     window.addEventListener('DOMContentLoaded', function() {
       setTimeout(function() {
-        if (window.ZeroAuth) {
+        if (window.ZeroAuth && window.ZeroAuth.init) {
           console.log('ZeroAuth loaded with QR!');
           window.dispatchEvent(new Event('zeroAuthReady'));
         } else {
-          console.error('ZeroAuth failed to load');
+          console.error('ZeroAuth failed to load - checking:', typeof window.ZeroAuth, window.ZeroAuth);
         }
       }, 100);
     });
