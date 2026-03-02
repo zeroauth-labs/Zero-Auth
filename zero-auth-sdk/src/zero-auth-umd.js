@@ -14,128 +14,83 @@
   'use strict';
 
   // ============================================
-  // Embedded QR Code Generator
+  // QR Code Generator
+  // Uses global QRCode if available (from importmap), else fallback
   // ============================================
   
-  // Minimal embedded QR generator (no external dependencies)
   const QRCodeLib = {
     generate: async function(text, size) {
       size = size || 200;
-      var canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
       
-      var ctx = canvas.getContext('2d');
-      var qr = generateQRData(text, size);
-      
-      // White background
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, size, size);
-      
-      // Calculate cell size
-      var cellSize = (size - 8) / qr.length;
-      var offset = 4;
-      
-      // Draw QR modules
-      ctx.fillStyle = '#000000';
-      for (var row = 0; row < qr.length; row++) {
-        for (var col = 0; col < qr.length; col++) {
-          if (qr[row][col]) {
-            ctx.fillRect(
-              Math.floor(offset + col * cellSize),
-              Math.floor(offset + row * cellSize),
-              Math.ceil(cellSize),
-              Math.ceil(cellSize)
-            );
-          }
-        }
+      // Try to use global QRCode (from importmap/esm)
+      if (typeof global.QRCode !== 'undefined') {
+        try {
+          return await global.QRCode.toDataURL(text, {
+            width: size,
+            margin: 1,
+            color: { dark: '#000000', light: '#ffffff' }
+          });
+        } catch(e) { console.warn('QRCode from global failed:', e); }
       }
       
-      return canvas.toDataURL('image/png');
+      if (typeof window.QRCode !== 'undefined') {
+        try {
+          return await window.QRCode.toDataURL(text, {
+            width: size,
+            margin: 1,
+            color: { dark: '#000000', light: '#ffffff' }
+          });
+        } catch(e) { console.warn('QRCode from window failed:', e); }
+      }
+      
+      // Fallback: simple placeholder QR
+      return createSimpleQR(text, size);
     }
   };
   
-  // Generate QR-like pattern from text
-  function generateQRData(text, size) {
-    var version = 1;
-    var len = 21 + (version - 1) * 4;
-    var qr = [];
+  function createSimpleQR(text, size) {
+    var canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    var ctx = canvas.getContext('2d');
     
-    // Initialize
-    for (var i = 0; i < len; i++) {
-      qr[i] = [];
-      for (var j = 0; j < len; j++) {
-        qr[i][j] = false;
-      }
-    }
+    // White background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, size, size);
     
-    // Position patterns (corners)
-    addPositionPattern(qr, 0, 0);
-    addPositionPattern(qr, len - 7, 0);
-    addPositionPattern(qr, 0, len - 7);
+    // Draw corner patterns
+    ctx.fillStyle = '#000000';
+    var s = size / 25;
     
-    // Alignment pattern
-    addAlignmentPattern(qr, len - 9, len - 9);
+    // Top-left
+    drawPositionPattern(ctx, 10, 10, s);
+    // Top-right
+    drawPositionPattern(ctx, size - 10 - 7*s, 10, s);
+    // Bottom-left
+    drawPositionPattern(ctx, 10, size - 10 - 7*s, s);
     
-    // Timing patterns
-    for (var i = 8; i < len - 8; i++) {
-      qr[6][i] = (i % 2 === 0);
-      qr[i][6] = (i % 2 === 0);
-    }
-    
-    // Format info areas
-    for (var i = 0; i < 6; i++) {
-      qr[8][i] = (i !== 2);
-      qr[i][8] = (i !== 2);
-    }
-    qr[8][7] = false;
-    qr[8][8] = false;
-    qr[7][8] = false;
-    
-    // Data pattern from text hash
-    var hash = hashCode(text);
-    for (var row = 8; row < len - 8; row++) {
-      for (var col = 8; col < len - 8; col++) {
-        if (!qr[row][col]) {
-          var idx = (row * len + col) % 16;
-          qr[row][col] = ((hash >> idx) & 1) === 1;
-        }
-      }
-    }
-    
-    return qr;
-  }
-  
-  function addPositionPattern(qr, row, col) {
-    for (var i = 0; i < 7; i++) {
-      for (var j = 0; j < 7; j++) {
-        var val = (i === 0 || i === 6 || j === 0 || j === 6 || (i >= 2 && i <= 4 && j >= 2 && j <= 4));
-        if (row + i < qr.length && col + j < qr.length) {
-          qr[row + i][col + j] = val;
-        }
-      }
-    }
-  }
-  
-  function addAlignmentPattern(qr, row, col) {
-    for (var i = -2; i <= 2; i++) {
-      for (var j = -2; j <= 2; j++) {
-        var val = Math.abs(i) === 2 || Math.abs(j) === 2 || (i === 0 && j === 0);
-        if (row + i >= 0 && row + i < qr.length && col + j >= 0 && col + j < qr.length) {
-          qr[row + i][col + j] = val;
-        }
-      }
-    }
-  }
-  
-  function hashCode(str) {
+    // Data area (simple pattern based on text hash)
     var hash = 0;
-    for (var i = 0; i < str.length; i++) {
-      var char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
+    for(var i=0; i<text.length; i++) hash = ((hash<<5)-hash) + text.charCodeAt(i);
+    
+    for(var row=8; row<17; row++) {
+      for(var col=8; col<17; col++) {
+        if(((hash >> ((row+col)%16)) & 1)) {
+          ctx.fillRect(10 + col*s, 10 + row*s, s, s);
+        }
+      }
     }
-    return Math.abs(hash);
+    
+    return canvas.toDataURL('image/png');
+  }
+  
+  function drawPositionPattern(ctx, x, y, s) {
+    for(var i=0; i<7; i++) {
+      for(var j=0; j<7; j++) {
+        var draw = (i===0||i===6||j===0||j===6||(i>=2&&i<=4&&j>=2&&j<=4));
+        if(draw) ctx.fillRect(x+i*s, y+j*s, s, s);
+      }
+    }
   }
 
   // ============================================
