@@ -133,7 +133,12 @@ export default function SettingsScreen() {
                 <Text className="text-muted-foreground">Manage your device identity</Text>
             </View>
 
-            <ScrollView className="flex-1 px-6 pt-6">
+            <ScrollView 
+                className="flex-1 px-6 pt-6" 
+                contentContainerStyle={{ flexGrow: 1 }}
+                showsVerticalScrollIndicator={true}
+                keyboardShouldPersistTaps="handled"
+            >
 
                 {/* Identity Card */}
                 <View className="bg-card p-5 rounded-2xl border border-primary/20 shadow-sm mb-6">

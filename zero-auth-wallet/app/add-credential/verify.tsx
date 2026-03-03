@@ -39,19 +39,49 @@ export default function VerifyScreen() {
 
                 // Step 2: Compute Commitment
                 setCurrentStep(2);
-                // Step 2: Compute Commitment
-                setCurrentStep(2);
-                const birthYearValue = params.idNumber || '2005';
-                let birthYear = Number(birthYearValue.split('/').pop()); // Extract year if DD/MM/YYYY
+                const isUniversity = category === 'university';
                 const currentYear = new Date().getFullYear();
+                
+                let attributes: Record<string, number | string>;
+                let commitments: Record<string, string>;
+                
+                if (isUniversity) {
+                    // For Student ID: add is_student=1, expiry_year, and university
+                    const expiryYear = currentYear + 1; // Default to next year
+                    const universityName = issuerName || 'University';
+                    
+                    // Compute commitment for isStudent and expiryYear
+                    const commitment = await commitAttribute(zkEngine, [1, expiryYear], salt);
+                    
+                    attributes = {
+                        is_student: 1,
+                        expiry_year: expiryYear,
+                        university: universityName
+                    };
+                    commitments = {
+                        is_student: commitment
+                    };
+                } else {
+                    // For Age Verification: add birth_year
+                    const birthYearValue = params.idNumber || '2005';
+                    let birthYear = Number(birthYearValue.split('/').pop()); // Extract year if DD/MM/YYYY
 
-                // Sanity check: If birthYear is invalid or in the future, fallback to a sensible default (e.g., extracted from ID or 2000)
-                if (isNaN(birthYear) || birthYear > currentYear || birthYear < 1900) {
-                    console.warn(`Invalid birth year parsed: ${birthYear}. Defaulting to 2002.`);
-                    birthYear = 2002;
+                    // Sanity check: If birthYear is invalid or in the future, fallback to a sensible default
+                    if (isNaN(birthYear) || birthYear > currentYear || birthYear < 1900) {
+                        console.warn(`Invalid birth year parsed: ${birthYear}. Defaulting to 2002.`);
+                        birthYear = 2002;
+                    }
+
+                    const commitment = await commitAttribute(zkEngine, birthYear, salt);
+                    
+                    attributes = {
+                        birth_year: birthYear
+                    };
+                    commitments = {
+                        birth_year: commitment
+                    };
                 }
-
-                const commitment = await commitAttribute(zkEngine, birthYear, salt);
+                
                 await new Promise(r => setTimeout(r, 1500));
 
                 // Step 3: Secure
@@ -63,14 +93,10 @@ export default function VerifyScreen() {
                 addCredential({
                     id: credentialId,
                     issuer: issuerName || 'Unknown Issuer',
-                    type: category === 'university' ? 'Student ID' : 'Age Verification',
+                    type: isUniversity ? 'Student ID' : 'Age Verification',
                     issuedAt: Date.now(),
-                    attributes: {
-                        birth_year: birthYear
-                    },
-                    commitments: {
-                        birth_year: commitment
-                    },
+                    attributes,
+                    commitments,
                     verified: true
                 });
 

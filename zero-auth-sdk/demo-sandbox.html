@@ -783,6 +783,9 @@
               <div class="chip" data-value="university">university</div>
               <div class="chip" data-value="email">email</div>
             </div>
+            <div id="claimsHelp" class="text-xs text-[var(--text-muted)] mt-2">
+              Age Verification returns birth_year (or age_over_18), country after verification
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label">Use Case</label>
@@ -1238,6 +1241,16 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
       });
       
       state.claims = claimsMap[state.credentialType] || [];
+      
+      // Update help text to clarify ZK behavior
+      const claimsHelp = document.getElementById('claimsHelp');
+      if (claimsHelp) {
+        if (state.credentialType === 'Student ID') {
+          claimsHelp.textContent = 'Student ID returns is_student, expiry_year, university after verification';
+        } else if (state.credentialType === 'Age Verification') {
+          claimsHelp.textContent = 'Age Verification returns birth_year (or age_over_18), country after verification';
+        }
+      }
     }
 
     // ============================================

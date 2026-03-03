@@ -26,6 +26,34 @@ function getUseCaseText(useCase?: string, verifierName?: string): string {
     }
 }
 
+// Helper to get colors based on use_case
+function getUseCaseColors(useCase?: string): { primary: string; primaryBg: string; primaryBorder: string; icon: string } {
+    switch (useCase) {
+        case 'LOGIN':
+            return {
+                primary: '#22d3ee',      // Cyan for login
+                primaryBg: 'rgba(34, 211, 238, 0.15)',
+                primaryBorder: 'rgba(34, 211, 238, 0.3)',
+                icon: '#22d3ee'
+            };
+        case 'TRIAL_LICENSE':
+            return {
+                primary: '#f472b6',      // Pink for trial
+                primaryBg: 'rgba(244, 114, 182, 0.15)',
+                primaryBorder: 'rgba(244, 114, 182, 0.3)',
+                icon: '#f472b6'
+            };
+        case 'VERIFICATION':
+        default:
+            return {
+                primary: '#7aa2f7',      // Blue for verification
+                primaryBg: 'rgba(122, 162, 247, 0.15)',
+                primaryBorder: 'rgba(122, 162, 247, 0.3)',
+                icon: '#7aa2f7'
+            };
+    }
+}
+
 // Helper to get action text
 function getActionText(useCase?: string): string {
     switch (useCase) {
@@ -55,8 +83,16 @@ export default function ApproveRequestScreen() {
     // Get credentials to find a match
     const credentials = useAuthStore((state) => state.credentials);
 
+    // Check if this is a no-claims request (e.g., just login without specific attributes)
+    const isNoClaimsRequest = !request?.required_claims || request.required_claims.length === 0;
+
     // Credential Selection Engine: Find ALL credentials that match the request
     const matchingCredentials = request ? credentials.filter(c => {
+        // If no claims requested, any credential of the right type can be used
+        if (isNoClaimsRequest) {
+            return c.type === request.credential_type;
+        }
+        
         if (c.type !== request.credential_type) return false;
         
         // Check if credential has ALL required claims
@@ -71,6 +107,11 @@ export default function ApproveRequestScreen() {
     // Selected credential state (for when multiple match)
     const [selectedCredentialIndex, setSelectedCredentialIndex] = useState(0);
     const selectedCredential = matchingCredentials[selectedCredentialIndex] || null;
+
+    // For no-claims requests, we need at least one credential of the right type
+    // For requests with claims, we need a credential that has all the required claims
+    const needsCredential = !isNoClaimsRequest;
+    const canApprove = !needsCredential || selectedCredential !== null;
 
     // Alert modal state
     const [alertState, setAlertState] = useState<{
@@ -228,16 +269,31 @@ export default function ApproveRequestScreen() {
 
     // Separate function for proof generation (called after warning acknowledged)
     const proceedWithProof = async () => {
-        if (!selectedCredential || !request) return;
+        // For no-claims requests, we can proceed without a specific credential
+        // Just generate a simple proof with no attributes
+        if (!request) return;
         
         setLoading(true);
         try {
+            let proof;
+            let cred = selectedCredential;
+            
+            // If no credential selected but needed, try to use the first matching one
+            if (!cred && matchingCredentials.length > 0) {
+                cred = matchingCredentials[0];
+            }
+            
+            // If still no credential and we need one, fail
+            if (!cred) {
+                throw new Error("No matching credential found for this verification request");
+            }
+            
             // Retrieve persisted salt
-            const salt = await SecureStore.getItemAsync(`salt_${selectedCredential.id}`);
+            const salt = await SecureStore.getItemAsync(`salt_${cred.id}`);
             if (!salt) throw new Error("Secure salt missing for this credential");
 
-            console.log("Generating proof for:", selectedCredential.id);
-            const proof = await generateProof(zkEngine, request, selectedCredential, salt);
+            console.log("Generating proof for:", cred.id);
+            proof = await generateProof(zkEngine, request, cred, salt);
             
             console.log("Proof generated, type:", proof ? typeof proof : 'undefined');
             console.log("Proof keys:", proof ? Object.keys(proof) : 'none');
@@ -339,21 +395,36 @@ export default function ApproveRequestScreen() {
     // Get dynamic header text based on use_case
     const headerText = getUseCaseText(request.use_case, request.verifier.name);
     const actionText = getActionText(request.use_case);
+    const useCaseColors = getUseCaseColors(request.use_case);
 
     return (
         <SafeAreaView className="flex-1 bg-background p-6">
             <View className="flex-1">
                 {/* Header */}
                 <View className="items-center mb-8 mt-4">
-                    <View className="w-20 h-20 bg-primary/10 rounded-full items-center justify-center mb-4 border border-primary/20">
-                        <ShieldCheck size={40} color="#7aa2f7" />
+                    <View 
+                        className="w-20 h-20 rounded-full items-center justify-center mb-4 border"
+                        style={{ backgroundColor: useCaseColors.primaryBg, borderColor: useCaseColors.primaryBorder }}
+                    >
+                        <ShieldCheck size={40} color={useCaseColors.icon} />
                     </View>
-                    <Text className="text-muted-foreground uppercase text-xs font-bold tracking-widest mb-2">Verification Request</Text>
+                    <Text className="text-muted-foreground uppercase text-xs font-bold tracking-widest mb-2">
+                        {request.use_case === 'LOGIN' ? 'Login Request' : request.use_case === 'TRIAL_LICENSE' ? 'Trial Access' : 'Verification Request'}
+                    </Text>
                     <Text className="text-foreground text-2xl font-bold text-center">{headerText}</Text>
-                    <Text className="text-primary text-xs font-mono mt-1">{request.verifier.did}</Text>
+                    <Text className="text-xs font-mono mt-1" style={{ color: useCaseColors.primary }}>{request.verifier.did}</Text>
                     {timeRemaining !== null && timeRemaining > 0 && (
-                        <View className={`mt-2 px-3 py-1 rounded-full ${timeRemaining < 60 ? 'bg-red-500/20 border border-red-500/40' : 'bg-primary/20 border border-primary/40'}`}>
-                            <Text className={`text-xs font-mono ${timeRemaining < 60 ? 'text-red-400' : 'text-primary'}`}>
+                        <View 
+                            className={`mt-2 px-3 py-1 rounded-full`}
+                            style={{ 
+                                backgroundColor: timeRemaining < 60 ? 'rgba(248, 113, 113, 0.2)' : useCaseColors.primaryBg,
+                                borderColor: timeRemaining < 60 ? 'rgba(248, 113, 113, 0.4)' : useCaseColors.primaryBorder
+                            }}
+                        >
+                            <Text 
+                                className={`text-xs font-mono`}
+                                style={{ color: timeRemaining < 60 ? '#f87171' : useCaseColors.primary }}
+                            >
                                 Expires in: {formatTime(timeRemaining)}
                             </Text>
                         </View>
@@ -364,14 +435,25 @@ export default function ApproveRequestScreen() {
                 <View className="bg-card p-5 rounded-2xl border border-white/5 mb-6">
                     <Text className="text-muted-foreground text-xs font-bold uppercase mb-4">Requesting to Verify</Text>
 
-                    <View className="flex-row flex-wrap gap-2 mb-4">
-                        {request.required_claims.map((claim) => (
-                            <View key={claim} className="bg-background px-3 py-2 rounded-lg border border-border flex-row items-center gap-2">
-                                <BadgeCheck size={14} color="#9ece6a" />
-                                <Text className="text-foreground text-sm font-medium">{claim.replace(/_/g, ' ')}</Text>
-                            </View>
-                        ))}
-                    </View>
+                    {isNoClaimsRequest ? (
+                        <View 
+                            className="px-4 py-3 rounded-xl border mb-4"
+                            style={{ backgroundColor: useCaseColors.primaryBg, borderColor: useCaseColors.primaryBorder }}
+                        >
+                            <Text className="text-sm font-medium" style={{ color: useCaseColors.primary }}>
+                                No specific attributes required - just verify you have a valid credential
+                            </Text>
+                        </View>
+                    ) : (
+                        <View className="flex-row flex-wrap gap-2 mb-4">
+                            {request.required_claims.map((claim) => (
+                                <View key={claim} className="bg-background px-3 py-2 rounded-lg border border-border flex-row items-center gap-2">
+                                    <BadgeCheck size={14} color="#9ece6a" />
+                                    <Text className="text-foreground text-sm font-medium">{claim.replace(/_/g, ' ')}</Text>
+                                </View>
+                            ))}
+                        </View>
+                    )}
 
                     <View className="h-[1px] bg-border/50 my-2" />
 
@@ -472,7 +554,9 @@ export default function ApproveRequestScreen() {
                             <View>
                                 <Text className="text-error font-bold">No matching credential found</Text>
                                 <Text className="text-[#565f89] text-xs">
-                                    Requesting: {request.required_claims.join(', ')}
+                                    {isNoClaimsRequest 
+                                        ? `No ${request.credential_type} credential found` 
+                                        : `Requesting: ${request.required_claims.join(', ')}`}
                                 </Text>
                             </View>
                         </View>
@@ -494,9 +578,13 @@ export default function ApproveRequestScreen() {
             <View className="gap-3">
                 <TouchableOpacity
                     onPress={handleApprove}
-                    disabled={!selectedCredential || loading || checkingRevocation || (timeRemaining !== null && timeRemaining <= 0)}
-                    className={`p-4 rounded-xl flex-row items-center justify-center gap-2 ${(!selectedCredential || loading || checkingRevocation || (timeRemaining !== null && timeRemaining <= 0)) ? 'bg-muted' : 'bg-primary'
-                        }`}
+                    disabled={!canApprove || loading || checkingRevocation || (timeRemaining !== null && timeRemaining <= 0)}
+                    style={{
+                        backgroundColor: (!canApprove || loading || checkingRevocation || (timeRemaining !== null && timeRemaining <= 0)) 
+                            ? '#3f3f46' 
+                            : useCaseColors.primary
+                    }}
+                    className={`p-4 rounded-xl flex-row items-center justify-center gap-2`}
                 >
                     {loading || checkingRevocation ? (
                         <ActivityIndicator color="#1a1b26" />

@@ -457,12 +457,29 @@ export class ZeroAuth {
 
     const data = await response.json();
     
+    // Parse required_claims from session (stored as JSON string in DB)
+    let claims: Record<string, unknown> | undefined;
+    if (data.required_claims) {
+      if (Array.isArray(data.required_claims)) {
+        // Already an array - convert to object with null values to show what's claimed
+        const claimsArr = data.required_claims as string[];
+        claims = claimsArr.reduce((acc, key) => ({ ...acc, [key]: '[claimed]' }), {});
+      } else if (typeof data.required_claims === 'string') {
+        try {
+          const claimsArr = JSON.parse(data.required_claims) as string[];
+          claims = claimsArr.reduce((acc, key) => ({ ...acc, [key]: '[claimed]' }), {});
+        } catch {
+          claims = undefined;
+        }
+      }
+    }
+    
     return {
       sessionId: data.session_id,
       status: data.status,
       qrPayload: '',
       expiresAt: 0,
-      claims: data.proof?.attributes
+      claims
     };
   }
 
