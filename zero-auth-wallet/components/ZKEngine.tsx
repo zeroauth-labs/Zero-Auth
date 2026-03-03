@@ -24,6 +24,7 @@ export const ZKProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   const webViewRef = useRef<WebView>(null);
   const [status, setStatus] = useState<ZKContextType['status']>('initializing');
   const [injectedJS, setInjectedJS] = useState({ snarkjs: '', poseidon: '' });
+  const [webViewReady, setWebViewReady] = useState(false);
 
   // Resolvers map: ID -> { resolve, reject }
   const resolvers = useRef<Record<string, { resolve: (val: any) => void; reject: (err: any) => void }>>({});
@@ -84,13 +85,14 @@ export const ZKProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       const request: BridgeRequest = { id, type, payload } as BridgeRequest;
 
       console.log(`[ZKEngine v2] Request: ${type} (${id})`);
-      if (status !== 'initializing' && status !== 'error' && webViewRef.current) {
+      console.log(`[ZKEngine] Status: ${status}, WebView Ready: ${webViewReady}, WebView Exists: ${!!webViewRef.current}`);
+      if (status !== 'initializing' && status !== 'error' && webViewRef.current && webViewReady) {
         console.log(`[ZKEngine] Injecting execution call: ${id}`);
         // Bridge v7: Use direct script injection instead of postMessage for better Android reliability
         const script = `if (window.zkBridgeExecute) window.zkBridgeExecute(${JSON.stringify(request)}); true;`;
         webViewRef.current.injectJavaScript(script);
       } else {
-        reject(new Error(`ZK Engine not ready (Status: ${status})`));
+        reject(new Error(`ZK Engine not ready (Status: ${status}, WebView: ${webViewReady})`));
       }
     });
   };
@@ -102,6 +104,11 @@ export const ZKProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       // Handle Logs & Progress
       if (response.type === 'LOG') {
         console.log(`[ZK-WebView] ${response.payload}`);
+        // Check for ready signal
+        if (response.payload === 'ZK_ENGINE_READY') {
+          console.log('[ZKEngine] WebView scripts fully loaded, setting webViewReady=true');
+          setWebViewReady(true);
+        }
         return;
       }
 
@@ -226,10 +233,12 @@ export const ZKProvider: React.FC<{ children: React.ReactNode }> = ({ children }
              console.log("Check - SnarkJS: " + snarkReady + ", Poseidon: " + poseidonReady);
              if (snarkReady && poseidonReady) {
                  console.log("ZK Engine Fully Ready (v7)");
+                 // Notify React Native that WebView is ready
+                 window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'LOG', payload: 'ZK_ENGINE_READY' }));
              } else {
                  console.log("ZK Engine Missing Libs (S:" + snarkReady + " P:" + poseidonReady + ")");
              }
-        }, 500);
+        }, 1000);
         true;
       `);
   };
@@ -266,6 +275,13 @@ export const ZKProvider: React.FC<{ children: React.ReactNode }> = ({ children }
             // We set status directly in loadAssets, so just checking for assets here
             if (injectedJS.snarkjs && webViewRef.current) {
               injectScripts(webViewRef.current);
+              // Also set a fallback timeout in case the ZK_ENGINE_READY message doesn't come
+              setTimeout(() => {
+                if (!webViewReady) {
+                  console.log('[ZKEngine] Fallback: setting webViewReady=true after 2s');
+                  setWebViewReady(true);
+                }
+              }, 2000);
             }
           }}
           javaScriptEnabled={true}
