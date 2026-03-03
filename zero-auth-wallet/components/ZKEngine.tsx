@@ -202,11 +202,30 @@ export const ZKProvider: React.FC<{ children: React.ReactNode }> = ({ children }
                      const zkey = Uint8Array.from(atob(zkeyB64), c => c.charCodeAt(0));
 
                      console.log('Starting Groth16 Proof...');
-                     const { proof, publicSignals } = await snarkjs.groth16.fullProve(inputs, wasm, zkey);
+                      const { proof, publicSignals } = await snarkjs.groth16.fullProve(inputs, wasm, zkey);
+                      
+                      // Convert BigInt values to strings for JSON serialization
+                      const serializeProof = (p) => {
+                        const result = {};
+                        for (const key in p) {
+                          const val = p[key];
+                          if (typeof val === 'bigint') {
+                            result[key] = val.toString();
+                          } else if (Array.isArray(val)) {
+                            result[key] = val.map(v => typeof v === 'bigint' ? v.toString() : v);
+                          } else {
+                            result[key] = val;
+                          }
+                        }
+                        return result;
+                      };
+                      
+                      const serializedProof = serializeProof(proof);
+                      const serializedSignals = publicSignals.map(s => typeof s === 'bigint' ? s.toString() : s);
 
-                     window.ReactNativeWebView.postMessage(JSON.stringify({
-                       id, type: 'RESULT', payload: { proof, publicSignals }
-                     }));
+                      window.ReactNativeWebView.postMessage(JSON.stringify({
+                        id, type: 'RESULT', payload: { proof: serializedProof, publicSignals: serializedSignals }
+                      }));
                  }
              } catch (err) {
                  console.log("Processing Error: " + err.toString());
