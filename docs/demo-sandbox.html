@@ -1077,6 +1077,8 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
     </div>
   </main>
 
+  <!-- QRCode library (required for real QR generation) -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <!-- ZeroAuth SDK -->
   <script src="./zero-auth-sdk/zero-auth-umd.js"></script>
   <script>
@@ -1294,10 +1296,18 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
           log('QR generation skipped: ' + e.message, 'warn');
         }
         
-        // Show QR code image
-        // Show session with copy button
+        // Show QR code image + session info
         qrDisplay.innerHTML = `
           <div style="text-align: center; padding: 20px;">
+            ${qrDataUrl ? `
+              <div class=\"qr-image\" style=\"margin-bottom: 12px;\">
+                <img src=\"${qrDataUrl}\" alt=\"QR Code\" style=\"max-width: ${state.qrSize}px; width: 100%; height: auto; border-radius: 8px;\" />
+              </div>
+            ` : `
+              <div style=\"font-size: 12px; color: var(--text-muted); margin-bottom: 12px;\">
+                QR code unavailable. Load a QRCode library or check console for details.
+              </div>
+            `}
             <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Session Created</div>
             <div style="background: var(--bg-dark); padding: 12px; border-radius: 8px; margin-bottom: 12px;">
               <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Session ID</div>

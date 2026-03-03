@@ -19,16 +19,21 @@
   // ============================================
   
   const QRCodeLib = {
-    generate: async function(text, size) {
-      size = size || 200;
+    generate: async function(text, options) {
+      var size = options && options.width ? options.width : 200;
+      var margin = options && typeof options.margin === 'number' ? options.margin : 1;
+      var dark = (options && options.color && options.color.dark) ? options.color.dark : '#000000';
+      var light = (options && options.color && options.color.light) ? options.color.light : '#ffffff';
+      var errorCorrectionLevel = options && options.errorCorrectionLevel ? options.errorCorrectionLevel : 'M';
       
       // Try to use global QRCode (from importmap/esm)
       if (typeof global.QRCode !== 'undefined') {
         try {
           return await global.QRCode.toDataURL(text, {
             width: size,
-            margin: 1,
-            color: { dark: '#000000', light: '#ffffff' }
+            margin: margin,
+            color: { dark: dark, light: light },
+            errorCorrectionLevel: errorCorrectionLevel
           });
         } catch(e) { console.warn('QRCode from global failed:', e); }
       }
@@ -37,25 +42,26 @@
         try {
           return await window.QRCode.toDataURL(text, {
             width: size,
-            margin: 1,
-            color: { dark: '#000000', light: '#ffffff' }
+            margin: margin,
+            color: { dark: dark, light: light },
+            errorCorrectionLevel: errorCorrectionLevel
           });
         } catch(e) { console.warn('QRCode from window failed:', e); }
       }
       
       // Fallback: simple placeholder QR
-      return createSimpleQR(text, size);
+      return createSimpleQR(text, size, dark, light);
     }
   };
   
-  function createSimpleQR(text, size) {
+  function createSimpleQR(text, size, dark, light) {
     var canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
     var ctx = canvas.getContext('2d');
     
     // White background
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = light || '#ffffff';
     ctx.fillRect(0, 0, size, size);
     
     // QR is 21x21 modules
@@ -63,7 +69,7 @@
     var s = size / (modules + 4);
     var border = 2 * s;
     
-    ctx.fillStyle = '#000000';
+    ctx.fillStyle = dark || '#000000';
     
     // Create module grid
     var grid = [];
@@ -483,14 +489,15 @@
      */
     generateQRBase64: async function(payload, options) {
       var opts = {
-        width: options?.width || 200,
+        width: options && options.width ? options.width : 200,
         margin: 1,
         color: {
-          dark: options?.color || '#000000',
-          light: options?.backgroundColor || '#ffffff'
-        }
+          dark: options && options.color ? options.color : '#000000',
+          light: options && options.backgroundColor ? options.backgroundColor : '#ffffff'
+        },
+        errorCorrectionLevel: options && options.errorCorrectionLevel ? options.errorCorrectionLevel : 'M'
       };
-      return await QRCodeLib.generate(payload, opts.width);
+      return await QRCodeLib.generate(payload, opts);
     },
 
     /**
