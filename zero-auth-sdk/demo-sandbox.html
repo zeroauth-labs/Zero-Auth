@@ -1286,7 +1286,8 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
         const session = await ZeroAuth.createSession({
           credentialType: state.credentialType,
           claims: state.claims,
-          useCase: state.useCase
+          useCase: state.useCase,
+          timeout: parseInt(document.getElementById('timeout').value)
         });
 
         log('Session created: ' + JSON.stringify(session).substring(0, 100));
@@ -1361,8 +1362,19 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
     async function pollForCompletion(sessionId) {
       log('Starting poll for completion...');
       const resultBox = document.getElementById('resultBox');
+      const timeout = parseInt(document.getElementById('timeout').value) * 1000;
+      const startTime = Date.now();
       
       const poll = setInterval(async () => {
+        // Check if we've exceeded the timeout
+        if (Date.now() - startTime > timeout) {
+          clearInterval(poll);
+          resultBox.textContent = 'Session timed out';
+          resultBox.className = 'result-box error';
+          log('Polling timed out after ' + (timeout/1000) + ' seconds');
+          return;
+        }
+        
         try {
           const status = await ZeroAuth.getSessionStatus(sessionId);
           log(`Status: ${status.status}`);
@@ -1378,7 +1390,8 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
             resultBox.className = 'result-box error';
           }
         } catch (e) {
-          // Ignore poll errors
+          // Ignore poll errors but log them
+          log('Poll error: ' + e.message);
         }
       }, 2000);
     }
