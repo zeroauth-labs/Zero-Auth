@@ -161,8 +161,18 @@ async function prepareInputs(request: VerificationRequest, credential: Credentia
         };
     } else if (request.credential_type === 'Student ID') {
         const isStudent = 1;
+        let expiryYear = currentYear + 1;
         const expiryYearAttribute = credential.attributes['expiry_year'] || credential.attributes['expires_at_year'];
-        const expiryYear = Number(expiryYearAttribute || currentYear + 1);
+
+        if (expiryYearAttribute) {
+            const parsedYear = Number(expiryYearAttribute);
+            if (!isNaN(parsedYear)) {
+                expiryYear = parsedYear;
+            }
+        } else if (credential.expiresAt) {
+            expiryYear = new Date(credential.expiresAt).getFullYear();
+        }
+
         const commitment = await commitAttribute(engine, [isStudent, expiryYear], salt);
         return {
             currentYear: currentYear,
