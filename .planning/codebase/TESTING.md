@@ -1,284 +1,126 @@
-# Testing Approach
+# TESTING.md - Test Structure and Practices
 
-## Current State
+## Test Framework Status
 
-### No Formal Test Framework
+**Finding: This codebase does NOT have a formal test framework set up.**
 
-The Zero-Auth codebase currently **does not have a formal testing framework** implemented. The project lacks:
-- Jest, Vitest, or Mocha test runners
-- Test scripts in package.json
-- Unit test files or test directories
-- Code coverage configuration
+- No Jest, Mocha, or Vitest configuration found
+- No `*.test.ts` or `*.spec.ts` files
+- Testing is done through **manual integration tests**
 
-### Manual Integration Testing
+## Manual Test Pattern
 
-The only testing currently in place is a manual integration test file:
-
-**`zero-auth-relay/test-relay.ts`**
-- Location: `/zero-auth-relay/test-relay.ts`
-- Type: Manual HTTP integration tests using `node-fetch`
-- Run manually against a running relay server at `http://localhost:3000/api/v1`
-- Tests the following scenarios:
-  1. Session creation with use_case
-  2. Session creation rate limiting (10 requests/minute)
-  3. Proof submission validation (Zod schema validation)
-  4. SSE stream connection
-  5. Worker validation
-
-### Example Test Pattern (Current)
+The relay package includes a simple test script for manual verification:
 
 ```typescript
-import fetch from 'node-fetch';
-
-const API_URL = 'http://localhost:3000/api/v1';
-
+// zero-auth-relay/scripts/test-relay.ts
 async function testSessionCreation() {
-  const res = await fetch(`${API_URL}/sessions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      verifier_name: 'Test Setup',
-      use_case: 'LOGIN',
-      credential_type: 'Test Credential'
-    })
-  });
-  return res.json();
+  console.log('\n--- Test: Session Creation ---');
+  try {
+    const res = await fetch(`${API_URL}/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ /* ... */ })
+    });
+    const data = await res.json();
+    console.log('Status:', res.status);
+    return data;
+  } catch (e) {
+    console.error('Error:', e);
+  }
 }
 ```
 
----
+### Test Execution
+- Tests are run manually against running server
+- Use `node-fetch` for HTTP requests
+- Simple console-based assertions
 
-## Recommendations for Testing
+## Recommended Test Setup
 
-### 1. Install a Test Framework
+For future test infrastructure, consider:
 
-Add a testing framework to each package:
+### Framework Options
 
-```bash
-# For zero-auth-relay (Node.js/Express)
-npm install --save-dev jest ts-jest @types/jest
+1. **Vitest** (Recommended)
+   - Faster than Jest
+   - Compatible with Vite ecosystem
+   - Works well with TypeScript
 
-# For zero-auth-sdk (Browser/React)
-npm install --save-dev vitest @testing-library/react jsdom
+2. **Jest**
+   - More mature, larger ecosystem
+   - Built-in mocking support
 
-# For zero-auth-wallet (React Native/Expo)
-npm install --save-dev vitest @testing-library/react-native
-```
-
-### 2. Test Structure Recommendations
-
-Follow standard testing patterns:
+### Test Structure
 
 ```
 zero-auth-relay/
 ├── src/
-│   ├── __tests__/           # Unit tests
-│   │   ├── validation.test.ts
-│   │   ├── db.test.ts
-│   │   └── zk.test.ts
-│   └── index.ts
-├── test-relay.ts            # Manual integration tests (keep for now)
-└── jest.config.js
+│   └── __tests__/
+│       ├── sessions.test.ts
+│       ├── validation.test.ts
+│       └── zk.test.ts
+├── vitest.config.ts
+└── package.json
 ```
 
-```
-zero-auth-sdk/
-├── src/
-│   ├── __tests__/
-│   │   ├── ZeroAuthButton.test.tsx
-│   │   └── init.test.ts
-│   └── index.ts
-└── vitest.config.js
-```
-
-### 3. Suggested Test Patterns
-
-#### Unit Tests for Relay (Jest)
+### Example Test
 
 ```typescript
-// zero-auth-relay/src/__tests__/validation.test.ts
-import { describe, it, expect, beforeEach } from 'jest';
-import { validateSessionRequest } from '../validation';
+import { describe, it, expect, beforeAll } from 'vitest';
 
-describe('validateSessionRequest', () => {
-  it('should reject invalid verifier_name', () => {
-    const result = validateSessionRequest({
-      verifier_name: '',  // Invalid
-      use_case: 'LOGIN'
+describe('Session API', () => {
+  it('should create a new session', async () => {
+    const res = await fetch(`${API_URL}/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        verifier_name: 'Test Verifier',
+        credential_type: 'Age Verification'
+      })
     });
-    expect(result.success).toBe(false);
+    
+    expect(res.status).toBe(201);
+    const data = await res.json();
+    expect(data.session_id).toBeDefined();
   });
+});
+```
 
-  it('should accept valid session request', () => {
-    const result = validateSessionRequest({
-      verifier_name: 'Test App',
-      use_case: 'LOGIN',
-      credential_type: 'Age Check'
+## Mocking Strategies
+
+Currently no mocking framework is used. For future implementation:
+
+### MSW (Mock Service Worker)
+- Recommended for API mocking
+- Works in browser and Node.js
+- Can intercept requests at network level
+
+### Example Mock Setup
+
+```typescript
+import { http, HttpResponse } from 'msw';
+
+const handlers = [
+  http.post('/api/v1/sessions', () => {
+    return HttpResponse.json({
+      session_id: 'test-123',
+      nonce: 'abc123',
+      status: 'PENDING'
     });
-    expect(result.success).toBe(true);
-  });
-});
+  })
+];
 ```
 
-#### Component Tests for SDK (Vitest + Testing Library)
+## Coverage Goals
 
-```typescript
-// zero-auth-sdk/src/__tests__/ZeroAuthButton.test.tsx
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { ZeroAuthButton } from '../components/ZeroAuthButton';
+Recommended coverage targets:
+- **Unit tests**: 80% for business logic (validation, error handling)
+- **Integration tests**: Critical paths (session creation, proof submission)
+- **E2E tests**: Full verification flow (SDK → Relay → Wallet)
 
-describe('ZeroAuthButton', () => {
-  it('should render with correct text', () => {
-    render(<ZeroAuthButton credentialType="Age Verification" />);
-    expect(screen.getByText('Verify with ZeroAuth')).toBeInTheDocument();
-  });
-});
-```
+## Linting
 
-### 4. Mocking Patterns
-
-#### Mocking Node Modules (Relay)
-
-```typescript
-// Mock Supabase
-jest.mock('@supabase/supabase-js', () => ({
-  createClient: jest.fn(() => ({
-    from: jest.fn(() => ({
-      insert: jest.fn().mockResolvedValue({ data: [] }),
-      select: jest.fn().mockResolvedValue({ data: [] }),
-      update: jest.fn().mockResolvedValue({ data: [] }),
-    })),
-  })),
-}));
-```
-
-#### Mocking Web APIs (SDK)
-
-```typescript
-// Mock fetch for browser tests
-import { vi } from 'vitest';
-global.fetch = vi.fn().mockResolvedValue({
-  json: () => Promise.resolve({ session_id: 'test-123' }),
-});
-```
-
-### 5. Test Utilities
-
-Create shared test utilities in a common location:
-
-```
-/testing/
-├── utils/
-│   ├── mockZKProof.ts      # Generate mock ZK proofs
-│   ├── mockSession.ts      # Create mock session objects
-│   └── testHelpers.ts      # Common test utilities
-└── fixtures/
-    └── sampleProof.json   # Sample proof data for tests
-```
-
----
-
-## Coverage Expectations
-
-### Target Coverage Goals
-
-| Package | Unit Tests | Integration Tests | Target Coverage |
-|---------|------------|-------------------|-----------------|
-| zero-auth-relay | High priority | Existing (manual) | 70%+ |
-| zero-auth-sdk | Medium priority | Recommended | 60%+ |
-| zero-auth-wallet | Lower priority | Manual testing | 50%+ |
-
-### Priority Areas for Testing
-
-1. **Relay Validation** (`validation.ts`) - Critical for security
-   - Input validation schemas
-   - Rate limiting logic
-   - Error handling
-
-2. **ZK Proof Processing** (`zk.ts`, `proof-worker.ts`)
-   - Proof verification
-   - Worker message handling
-
-3. **Database Operations** (`db.ts`)
-   - Session CRUD operations
-   - Query building
-
-4. **SDK Components** (React)
-   - ZeroAuthButton component
-   - Initialization flow
-
----
-
-## Running Tests
-
-### Current (Manual)
-
-```bash
-# Start relay server
-cd zero-auth-relay && npm run dev
-
-# Run manual integration tests (in another terminal)
-cd zero-auth-relay && npx tsx test-relay.ts
-```
-
-### Recommended (With Framework)
-
-```bash
-# Add to package.json scripts
-{
-  "scripts": {
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
-  }
-}
-
-# Run tests
-npm test
-npm run test:coverage
-```
-
----
-
-## CI/CD Integration
-
-For automated testing, consider adding a GitHub Actions workflow:
-
-```yaml
-# .github/workflows/test.yml
-name: Test
-
-on: [push, pull_request]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      
-      - name: Install dependencies
-        run: npm run install:all
-      
-      - name: Run relay tests
-        working-directory: zero-auth-relay
-        run: npm test
-      
-      - name: Run SDK tests
-        working-directory: zero-auth-sdk
-        run: npm test
-```
-
----
-
-## Summary
-
-The Zero-Auth project currently has minimal testing infrastructure. The primary testing activity is a manual integration test script for the relay server. To improve code quality and maintainability:
-
-1. **Immediate**: Add unit tests for validation and critical paths
-2. **Short-term**: Install Jest/Vitest and create component tests
-3. **Long-term**: Establish CI/CD pipeline with automated test runs
-4. **Ongoing**: Target 60-70% code coverage for critical packages
+- `zero-auth-wallet` has `eslint.config.js`
+- Other packages should adopt similar configuration
+- Consider adding `eslint-plugin-test-library` when tests are added
