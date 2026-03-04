@@ -3,6 +3,7 @@ import { Tabs } from 'expo-router';
 import { History, LayoutDashboard, ScanLine, Settings, WalletCards } from 'lucide-react-native';
 import React from 'react';
 import { View } from 'react-native';
+import { BlurView } from 'expo-blur';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -12,7 +13,7 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#1a1b26', // Tokyo Night Background
+          backgroundColor: 'transparent',
           borderTopWidth: 0,
           position: 'absolute',
           bottom: 20,
@@ -22,12 +23,22 @@ export default function TabLayout() {
           borderRadius: 35,
           paddingBottom: 0,
           paddingTop: 0,
-          elevation: 5,
+          elevation: 8,
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 5,
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.35,
+          shadowRadius: 12,
+          overflow: 'hidden',
+          borderWidth: 1,
+          borderColor: 'rgba(255, 255, 255, 0.08)'
         },
+        tabBarBackground: () => (
+          <BlurView
+            intensity={18}
+            tint="dark"
+            style={{ flex: 1, backgroundColor: 'rgba(26, 27, 38, 0.7)' }}
+          />
+        ),
         tabBarActiveTintColor: '#7aa2f7', // Primary
         tabBarInactiveTintColor: '#565f89', // Muted
         tabBarShowLabel: true,
@@ -59,9 +70,9 @@ export default function TabLayout() {
         options={{
           title: 'Scan',
           tabBarIcon: ({ color, focused }) => (
-            <View className="items-center justify-center -mt-10">
-              <View className={`w-16 h-16 rounded-full items-center justify-center border-4 border-[#1a1b26] ${focused ? 'bg-primary shadow-lg shadow-primary/50' : 'bg-[#16161e]'}`}>
-                <ScanLine size={28} color={focused ? '#1a1b26' : '#7aa2f7'} />
+            <View className="items-center justify-center">
+              <View className={`w-12 h-12 rounded-full items-center justify-center border border-white/10 ${focused ? 'bg-primary/90' : 'bg-white/5'}`}>
+                <ScanLine size={22} color={focused ? '#1a1b26' : '#7aa2f7'} />
               </View>
             </View>
           ),

@@ -1,4 +1,5 @@
 import { commitAttribute } from '@/lib/hashing';
+import { getSupabaseConfig } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth-store';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { BadgeCheck, Check, Fingerprint, Hash, ShieldCheck, X } from 'lucide-react-native';
@@ -10,16 +11,17 @@ import { generateSecureId, generateSecureSalt } from '@/lib/utils';
 
 export default function VerifyScreen() {
     const router = useRouter();
-    const params = useLocalSearchParams<{ issuerName: string, category: string, issuerId: string, idNumber: string }>();
+    const params = useLocalSearchParams<{ issuerName: string, category: string, issuerId: string, idNumber: string, dob: string }>();
     const { issuerName, category, issuerId } = params;
     const addCredential = useAuthStore((state) => state.addCredential);
 
     const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
     const [currentStep, setCurrentStep] = useState(0);
     const zkEngine = useZKEngine();
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const steps = [
-        { label: 'Hashing attributes', icon: Hash },
+        { label: 'Verifying with issuer', icon: Hash },
         { label: 'Generating secure salt', icon: Fingerprint },
         { label: 'Computing POSEIDON commitment', icon: ShieldCheck },
         { label: 'Securing in hardware enclave', icon: BadgeCheck }
@@ -28,73 +30,85 @@ export default function VerifyScreen() {
     useEffect(() => {
         const runVerification = async () => {
             try {
-                // Step 0: Hash attributes
+                // Step 0: Verify with issuer (Supabase)
                 setCurrentStep(0);
-                await new Promise(r => setTimeout(r, 1200));
+                const { supabaseUrl, supabaseAnonKey } = getSupabaseConfig();
+
+                if (!supabaseUrl || !supabaseAnonKey) {
+                    throw new Error('Missing Supabase configuration. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY.');
+                }
+
+                const idNumber = params.idNumber?.toString().trim();
+                const dob = params.dob?.toString().trim();
+
+                if (!idNumber || !dob) {
+                    throw new Error('Missing ID number or date of birth.');
+                }
+
+                const [day, month, year] = dob.split('/');
+                const isoDob = `${year}-${month}-${day}`;
+
+                const verifyResponse = await fetch(`${supabaseUrl}/functions/v1/verify-student`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${supabaseAnonKey}`
+                    },
+                    body: JSON.stringify({
+                        id_number: idNumber,
+                        date_of_birth: isoDob,
+                        credential_type: 'Student ID',
+                        claims: ['is_student', 'university'],
+                        idempotency_key: generateSecureId()
+                    })
+                });
+
+                const verifyResult = await verifyResponse.json();
+                if (!verifyResponse.ok || !verifyResult?.success) {
+                    throw new Error(verifyResult?.message || 'Verification failed');
+                }
+
+                const issuedCredential = verifyResult.credential;
+                if (!issuedCredential?.id || !issuedCredential?.attributes) {
+                    throw new Error('Issuer response is missing credential data.');
+                }
 
                 // Step 1: Generate Salt
                 setCurrentStep(1);
                 const salt = generateSecureSalt();
-                await new Promise(r => setTimeout(r, 800));
 
                 // Step 2: Compute Commitment
                 setCurrentStep(2);
                 const isUniversity = category === 'university';
-                const currentYear = new Date().getFullYear();
                 
                 let attributes: Record<string, number | string>;
                 let commitments: Record<string, string>;
                 
                 if (isUniversity) {
-                    // For Student ID: add is_student=1, expiry_year, and university
-                    const expiryYear = currentYear + 1; // Default to next year
-                    const universityName = issuerName || 'University';
-                    
-                    // Compute commitment for isStudent and expiryYear
-                    const commitment = await commitAttribute(zkEngine, [1, expiryYear], salt);
-                    
+                    const commitment = await commitAttribute(zkEngine, 1, salt);
+
                     attributes = {
-                        is_student: 1,
-                        expiry_year: expiryYear,
-                        university: universityName
+                        is_student: issuedCredential.attributes.is_student ?? 1,
+                        university: issuedCredential.attributes.university || issuerName || 'University'
                     };
                     commitments = {
                         is_student: commitment
                     };
                 } else {
-                    // For Age Verification: add birth_year
-                    const birthYearValue = params.idNumber || '2005';
-                    let birthYear = Number(birthYearValue.split('/').pop()); // Extract year if DD/MM/YYYY
-
-                    // Sanity check: If birthYear is invalid or in the future, fallback to a sensible default
-                    if (isNaN(birthYear) || birthYear > currentYear || birthYear < 1900) {
-                        console.warn(`Invalid birth year parsed: ${birthYear}. Defaulting to 2002.`);
-                        birthYear = 2002;
-                    }
-
-                    const commitment = await commitAttribute(zkEngine, birthYear, salt);
-                    
-                    attributes = {
-                        birth_year: birthYear
-                    };
-                    commitments = {
-                        birth_year: commitment
-                    };
+                    throw new Error('Unsupported credential type');
                 }
-                
-                await new Promise(r => setTimeout(r, 1500));
 
                 // Step 3: Secure
                 setCurrentStep(3);
-                const credentialId = generateSecureId();
+                const credentialId = issuedCredential.id;
                 await SecureStore.setItemAsync(`salt_${credentialId}`, salt);
-                await new Promise(r => setTimeout(r, 1000));
 
                 addCredential({
                     id: credentialId,
-                    issuer: issuerName || 'Unknown Issuer',
-                    type: isUniversity ? 'Student ID' : 'Age Verification',
-                    issuedAt: Date.now(),
+                    issuer: issuedCredential.issuer || issuerName || 'Unknown Issuer',
+                    type: 'Student ID',
+                    issuedAt: new Date(issuedCredential.issuedAt).getTime(),
+                    expiresAt: issuedCredential.expiresAt ? new Date(issuedCredential.expiresAt).getTime() : undefined,
                     attributes,
                     commitments,
                     verified: true
@@ -108,8 +122,9 @@ export default function VerifyScreen() {
                     router.navigate('/(tabs)/credentials');
                 }, 2000);
 
-            } catch (e) {
+            } catch (e: any) {
                 console.error(e);
+                setErrorMessage(e?.message || 'Verification failed');
                 setStatus('error');
             }
         };
@@ -169,6 +184,11 @@ export default function VerifyScreen() {
                         <X size={40} color="#f7768e" />
                     </View>
                     <Text className="text-xl font-bold text-foreground mb-4">Verification Failed</Text>
+                    {errorMessage && (
+                        <Text className="text-[#565f89] text-center mb-6">
+                            {errorMessage}
+                        </Text>
+                    )}
                     <TouchableOpacity onPress={() => router.back()} className="bg-primary px-6 py-3 rounded-xl">
                         <Text className="text-[#1a1b26] font-bold">Try Again</Text>
                     </TouchableOpacity>

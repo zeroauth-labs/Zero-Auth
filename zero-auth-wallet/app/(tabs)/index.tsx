@@ -3,8 +3,8 @@ import SessionCard from '@/components/SessionCard';
 import { useAuthStore } from '@/store/auth-store';
 import { useNetworkStatus } from '@/lib/offline';
 import { useRouter } from 'expo-router';
-import { Bell, QrCode, ShieldCheck, ShieldAlert, BadgeCheck, Shield, WifiOff } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { Bell, QrCode, BadgeCheck, Shield, WifiOff, Snowflake } from 'lucide-react-native';
+import { useState } from 'react';
 import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -32,9 +32,14 @@ export default function DashboardScreen() {
       <View className="flex-1 px-4">
         {/* Header */}
         <View className="flex-row justify-between items-center py-4 mb-3">
-          <View>
-            <Text className="text-[#a9b1d6] font-bold text-xs tracking-widest uppercase opacity-70">Secured with ZK</Text>
-            <Text className="text-foreground text-3xl font-bold">Zero Auth</Text>
+          <View className="flex-row items-center gap-3">
+            <View className="w-12 h-12 rounded-2xl bg-[#16161e] items-center justify-center border border-white/10 shadow-sm">
+              <Snowflake size={22} color="#7aa2f7" />
+            </View>
+            <View>
+              <Text className="text-[#a9b1d6] font-bold text-xs tracking-widest uppercase opacity-70">Secured with ZK</Text>
+              <Text className="text-foreground text-3xl font-bold">Zero Auth</Text>
+            </View>
           </View>
           <View className="flex-row gap-3">
             <TouchableOpacity onPress={() => router.push('/settings')} className="w-12 h-12 rounded-2xl bg-[#16161e] items-center justify-center border border-white/10 shadow-sm">
@@ -57,20 +62,6 @@ export default function DashboardScreen() {
             </Text>
           </View>
         )}
-
-        {/* Security Health Card */}
-        <View className="bg-card/50 border border-white/5 rounded-3xl p-5 mb-6 flex-row items-center gap-4">
-          <View className="w-12 h-12 rounded-2xl bg-success/10 items-center justify-center border border-success/20">
-            <ShieldCheck size={28} color="#9ece6a" />
-          </View>
-          <View className="flex-1">
-            <Text className="text-white font-bold text-lg">System Secure</Text>
-            <Text className="text-muted-foreground text-xs">Device-bound identity active</Text>
-          </View>
-          <View className="bg-success/20 px-3 py-1.5 rounded-full">
-            <Text className="text-success text-[10px] font-bold uppercase">Healthy</Text>
-          </View>
-        </View>
 
         {/* Quick Actions */}
         <View className="flex-row gap-4 mb-8">

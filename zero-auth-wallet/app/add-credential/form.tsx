@@ -28,7 +28,7 @@ export default function CredentialForm() {
     const handleSubmit = () => {
         router.push({
             pathname: '/add-credential/verify',
-            params: { issuerName, category, issuerId, idNumber }
+            params: { issuerName, category, issuerId, idNumber, dob }
         });
     };
 

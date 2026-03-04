@@ -5,15 +5,13 @@ import { Info, RefreshCw, Smartphone, Trash2, Calendar } from 'lucide-react-nati
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
-import * as LocalAuthentication from 'expo-local-authentication';
-import { Copy, ShieldCheck, ShieldX } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { Copy } from 'lucide-react-native';
+import { useState } from 'react';
 import CustomAlert from '@/components/CustomAlert';
 
 export default function SettingsScreen() {
     const did = useWalletStore((state) => state.did);
     const publicKeyHex = useWalletStore((state) => state.publicKeyHex);
-    const [biometricStatus, setBiometricStatus] = useState<'loading' | 'available' | 'unavailable'>('loading');
     const resetWallet = useWalletStore((state) => state.resetWallet);
     const clearAllData = useAuthStore((state) => state.clearAllData);
     const clearHistory = useAuthStore((state) => state.clearHistory);
@@ -29,12 +27,6 @@ export default function SettingsScreen() {
         cancelText?: string;
         onConfirm?: () => void;
     }>({ visible: false, type: 'info', title: '', message: '' });
-
-    useEffect(() => {
-        LocalAuthentication.hasHardwareAsync().then(hasHardware => {
-            setBiometricStatus(hasHardware ? 'available' : 'unavailable');
-        });
-    }, []);
 
     const handleReset = () => {
         setAlertState({
@@ -73,39 +65,6 @@ export default function SettingsScreen() {
         });
     };
 
-    const handleViewSecretKey = async () => {
-        const hasHardware = await LocalAuthentication.hasHardwareAsync();
-        const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-
-        if (hasHardware && isEnrolled) {
-            const auth = await LocalAuthentication.authenticateAsync({
-                promptMessage: 'Authenticate to view Secret Key',
-            });
-            if (!auth.success) return;
-        }
-
-        const pk = await useWalletStore.getState().getRawPrivateKey();
-        if (pk) {
-            setAlertState({
-                visible: true,
-                type: 'info',
-                title: 'Secret Key',
-                message: pk,
-                confirmText: 'Copy',
-                onConfirm: async () => {
-                    await Clipboard.setStringAsync(pk);
-                    setAlertState(prev => ({ ...prev, visible: false }));
-                }
-            });
-        } else {
-            setAlertState({
-                visible: true,
-                type: 'error',
-                title: 'Error',
-                message: 'Could not retrieve key',
-            });
-        }
-    };
 
     const handleClearHistory = () => {
         setAlertState({
@@ -135,7 +94,7 @@ export default function SettingsScreen() {
 
             <ScrollView 
                 className="flex-1 px-6 pt-6" 
-                contentContainerStyle={{ flexGrow: 1 }}
+                contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
                 showsVerticalScrollIndicator={true}
                 keyboardShouldPersistTaps="handled"
             >
@@ -170,42 +129,7 @@ export default function SettingsScreen() {
                             {publicKeyHex || 'Loading...'}
                         </Text>
                     </View>
-
-                    <View className="mt-4 pt-4 border-t border-white/5">
-                        <Text className="text-xs font-bold text-muted-foreground uppercase mb-1">Security Hardware</Text>
-                        <View className="flex-row items-center gap-2 bg-black/20 p-2 rounded border border-white/5">
-                            {biometricStatus === 'available' ? (
-                                <>
-                                    <ShieldCheck size={14} color="#9ece6a" />
-                                    <Text className="text-success text-xs font-bold">Biometrics Supported</Text>
-                                </>
-                            ) : biometricStatus === 'unavailable' ? (
-                                <>
-                                    <ShieldX size={14} color="#f7768e" />
-                                    <Text className="text-error text-xs font-bold">Biometrics Unavailable</Text>
-                                </>
-                            ) : (
-                                <Text className="text-muted-foreground text-xs">Checking...</Text>
-                            )}
-                        </View>
-                    </View>
                 </View>
-
-                {/* Secret Key Backup */}
-                <Text className="text-sm font-bold text-muted-foreground uppercase mb-3 px-1">Security</Text>
-
-                <TouchableOpacity
-                    onPress={handleViewSecretKey}
-                    className="bg-card p-4 rounded-xl border border-white/5 flex-row items-center gap-4 mb-6 active:bg-white/5"
-                >
-                    <View className="w-10 h-10 bg-primary/10 rounded-full items-center justify-center">
-                        <ShieldCheck size={20} color="#7aa2f7" />
-                    </View>
-                    <View className="flex-1">
-                        <Text className="text-foreground font-bold">Backup Identity</Text>
-                        <Text className="text-muted-foreground text-xs">View Secret Recovery Key</Text>
-                    </View>
-                </TouchableOpacity>
 
                 {/* Actions */}
                 <Text className="text-sm font-bold text-muted-foreground uppercase mb-3 px-1">Actions</Text>

@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ArrowRight, GraduationCap, Landmark, X } from 'lucide-react-native';
+import { ArrowRight, GraduationCap, X } from 'lucide-react-native';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -7,31 +7,14 @@ const CATEGORIES = [
     {
         id: 'university',
         title: 'University ID',
-        description: 'Verify your student status, graduation year, and department.',
+        description: 'Verify your student status from APJ Abdul Kalam Technological University.',
         icon: GraduationCap,
         color: '#7aa2f7',
     },
-    {
-        id: 'government',
-        title: 'Government ID',
-        description: 'Aadhaar, Passport, Driving License, etc.',
-        icon: Landmark,
-        color: '#bb9af7',
-    },
+    // Government ID option removed - keeping it simple
 ];
 
-const ADVANCED = [
-    {
-        id: 'import',
-        title: 'Import JSON',
-        description: 'Import a signed JSON/JWT credential from clipboard.',
-        icon: ClipboardList,
-        color: '#9ece6a',
-        pathname: '/add-credential/import'
-    }
-];
-
-import { ClipboardList, FileJson } from 'lucide-react-native';
+// Import JSON option removed
 
 export default function AddCredentialIndex() {
     const router = useRouter();
@@ -52,24 +35,6 @@ export default function AddCredentialIndex() {
                     <TouchableOpacity
                         key={cat.id}
                         onPress={() => router.push({ pathname: '/add-credential/issuer-select', params: { category: cat.id } })}
-                        className="bg-card border border-border p-5 rounded-2xl mb-4 flex-row items-center gap-4 active:bg-card/80"
-                    >
-                        <View className="w-12 h-12 rounded-full items-center justify-center" style={{ backgroundColor: `${cat.color}20` }}>
-                            <cat.icon size={24} color={cat.color} />
-                        </View>
-                        <View className="flex-1">
-                            <Text className="text-foreground font-bold text-lg mb-1">{cat.title}</Text>
-                            <Text className="text-[#565f89] text-xs leading-5">{cat.description}</Text>
-                        </View>
-                        <ArrowRight size={20} color="#565f89" />
-                    </TouchableOpacity>
-                ))}
-
-                <Text className="text-[#565f89] uppercase text-xs font-bold tracking-widest mt-4 mb-4">Advanced</Text>
-                {ADVANCED.map((cat) => (
-                    <TouchableOpacity
-                        key={cat.id}
-                        onPress={() => router.push(cat.pathname as any)}
                         className="bg-card border border-border p-5 rounded-2xl mb-4 flex-row items-center gap-4 active:bg-card/80"
                     >
                         <View className="w-12 h-12 rounded-full items-center justify-center" style={{ backgroundColor: `${cat.color}20` }}>

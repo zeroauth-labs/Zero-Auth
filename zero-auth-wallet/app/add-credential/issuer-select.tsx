@@ -9,15 +9,9 @@ import CustomAlert from '@/components/CustomAlert';
 const ISSUERS = {
     university: [
         { id: 'ktu', name: 'APJ Abdul Kalam Technological University (KTU)' },
-        { id: 'mumbai', name: 'University of Mumbai' },
-        { id: 'iit_bombay', name: 'IIT Bombay' },
-        { id: 'delhi', name: 'Delhi University' },
-        { id: 'anna', name: 'Anna University' },
     ],
     government: [
-        { id: 'aadhaar', name: 'Aadhaar (UIDAI)' },
-        { id: 'passport', name: 'Indian Passport' },
-        { id: 'dl', name: 'Driving License' },
+        // Government IDs removed - keeping only University ID for now
     ]
 };
 
