@@ -27,7 +27,19 @@ function getUseCaseText(useCase?: string, verifierName?: string): string {
 }
 
 // Helper to get colors based on use_case
-function getUseCaseColors(useCase?: string): { primary: string; primaryBg: string; primaryBorder: string; icon: string } {
+function getUseCaseColors(useCase?: string, credentialType?: string): { primary: string; primaryBg: string; primaryBorder: string; icon: string } {
+    // Check if this is a University ID credential - use purple theme
+    const isUniversity = credentialType === 'Student ID';
+    
+    if (isUniversity) {
+        return {
+            primary: '#bb9af7',      // Purple for University ID
+            primaryBg: 'rgba(187, 154, 247, 0.15)',
+            primaryBorder: 'rgba(187, 154, 247, 0.3)',
+            icon: '#bb9af7'
+        };
+    }
+    
     switch (useCase) {
         case 'LOGIN':
             return {
@@ -395,7 +407,7 @@ export default function ApproveRequestScreen() {
     // Get dynamic header text based on use_case
     const headerText = getUseCaseText(request.use_case, request.verifier.name);
     const actionText = getActionText(request.use_case);
-    const useCaseColors = getUseCaseColors(request.use_case);
+    const useCaseColors = getUseCaseColors(request.use_case, request.credential_type);
 
     return (
         <SafeAreaView className="flex-1 bg-background p-6">
@@ -561,16 +573,6 @@ export default function ApproveRequestScreen() {
                             </View>
                         </View>
                     )}
-                </View>
-
-                {/* Privacy Note */}
-                <View className="bg-primary/5 p-4 rounded-xl border border-primary/10">
-                    <Text className="text-primary text-xs text-center font-medium">
-                        Zero Auth will generate a Zero-Knowledge Proof. {request.verifier.name} will NOT receive your raw data.
-                    </Text>
-                    <Text className="text-[#565f89] text-[9px] text-center mt-1">
-                        Circuit: {request.credential_type} ZK-v1
-                    </Text>
                 </View>
             </View>
 

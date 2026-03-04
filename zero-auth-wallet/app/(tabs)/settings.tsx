@@ -135,7 +135,7 @@ export default function SettingsScreen() {
 
             <ScrollView 
                 className="flex-1 px-6 pt-6" 
-                contentContainerStyle={{ flexGrow: 1 }}
+                contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
                 showsVerticalScrollIndicator={true}
                 keyboardShouldPersistTaps="handled"
             >
@@ -170,42 +170,7 @@ export default function SettingsScreen() {
                             {publicKeyHex || 'Loading...'}
                         </Text>
                     </View>
-
-                    <View className="mt-4 pt-4 border-t border-white/5">
-                        <Text className="text-xs font-bold text-muted-foreground uppercase mb-1">Security Hardware</Text>
-                        <View className="flex-row items-center gap-2 bg-black/20 p-2 rounded border border-white/5">
-                            {biometricStatus === 'available' ? (
-                                <>
-                                    <ShieldCheck size={14} color="#9ece6a" />
-                                    <Text className="text-success text-xs font-bold">Biometrics Supported</Text>
-                                </>
-                            ) : biometricStatus === 'unavailable' ? (
-                                <>
-                                    <ShieldX size={14} color="#f7768e" />
-                                    <Text className="text-error text-xs font-bold">Biometrics Unavailable</Text>
-                                </>
-                            ) : (
-                                <Text className="text-muted-foreground text-xs">Checking...</Text>
-                            )}
-                        </View>
-                    </View>
                 </View>
-
-                {/* Secret Key Backup */}
-                <Text className="text-sm font-bold text-muted-foreground uppercase mb-3 px-1">Security</Text>
-
-                <TouchableOpacity
-                    onPress={handleViewSecretKey}
-                    className="bg-card p-4 rounded-xl border border-white/5 flex-row items-center gap-4 mb-6 active:bg-white/5"
-                >
-                    <View className="w-10 h-10 bg-primary/10 rounded-full items-center justify-center">
-                        <ShieldCheck size={20} color="#7aa2f7" />
-                    </View>
-                    <View className="flex-1">
-                        <Text className="text-foreground font-bold">Backup Identity</Text>
-                        <Text className="text-muted-foreground text-xs">View Secret Recovery Key</Text>
-                    </View>
-                </TouchableOpacity>
 
                 {/* Actions */}
                 <Text className="text-sm font-bold text-muted-foreground uppercase mb-3 px-1">Actions</Text>

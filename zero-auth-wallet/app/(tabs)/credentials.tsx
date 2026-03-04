@@ -25,12 +25,19 @@ function CredentialCard({ credential, onRevokeRequest }: { credential: Credentia
 
             <View className="flex-row justify-between items-start mb-6">
                 <View>
-                    <Text className="text-[#565f89] text-xs uppercase font-bold tracking-widest mb-1">{credential.issuer}</Text>
+                    <Text className="text-[#565f89] text-xs uppercase font-bold tracking-wider mb-1">{credential.issuer}</Text>
                     <Text className="text-foreground text-xl font-bold">{displayType}</Text>
                     <Text className="text-[#565f89] text-[10px] mt-1 italic">
                         Issued: {new Date(credential.issuedAt).toLocaleDateString()}
                     </Text>
                 </View>
+                {credential.verified && (
+                    <View className="bg-success/20 px-2 py-1 rounded flex-row items-center gap-1 max-w-[80px]">
+                        <BadgeCheck size={14} color="#9ece6a" />
+                        <Text className="text-success text-xs font-bold uppercase">Verified</Text>
+                    </View>
+                )}
+            </View>
                 {credential.verified && (
                     <View className="bg-success/20 px-2 py-1 rounded flex-row items-center gap-1">
                         <BadgeCheck size={14} color="#9ece6a" />
