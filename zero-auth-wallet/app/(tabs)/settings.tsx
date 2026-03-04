@@ -5,15 +5,13 @@ import { Info, RefreshCw, Smartphone, Trash2, Calendar } from 'lucide-react-nati
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
-import * as LocalAuthentication from 'expo-local-authentication';
-import { Copy, ShieldCheck, ShieldX } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { Copy } from 'lucide-react-native';
+import { useState } from 'react';
 import CustomAlert from '@/components/CustomAlert';
 
 export default function SettingsScreen() {
     const did = useWalletStore((state) => state.did);
     const publicKeyHex = useWalletStore((state) => state.publicKeyHex);
-    const [biometricStatus, setBiometricStatus] = useState<'loading' | 'available' | 'unavailable'>('loading');
     const resetWallet = useWalletStore((state) => state.resetWallet);
     const clearAllData = useAuthStore((state) => state.clearAllData);
     const clearHistory = useAuthStore((state) => state.clearHistory);
@@ -29,12 +27,6 @@ export default function SettingsScreen() {
         cancelText?: string;
         onConfirm?: () => void;
     }>({ visible: false, type: 'info', title: '', message: '' });
-
-    useEffect(() => {
-        LocalAuthentication.hasHardwareAsync().then(hasHardware => {
-            setBiometricStatus(hasHardware ? 'available' : 'unavailable');
-        });
-    }, []);
 
     const handleReset = () => {
         setAlertState({
@@ -73,39 +65,6 @@ export default function SettingsScreen() {
         });
     };
 
-    const handleViewSecretKey = async () => {
-        const hasHardware = await LocalAuthentication.hasHardwareAsync();
-        const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-
-        if (hasHardware && isEnrolled) {
-            const auth = await LocalAuthentication.authenticateAsync({
-                promptMessage: 'Authenticate to view Secret Key',
-            });
-            if (!auth.success) return;
-        }
-
-        const pk = await useWalletStore.getState().getRawPrivateKey();
-        if (pk) {
-            setAlertState({
-                visible: true,
-                type: 'info',
-                title: 'Secret Key',
-                message: pk,
-                confirmText: 'Copy',
-                onConfirm: async () => {
-                    await Clipboard.setStringAsync(pk);
-                    setAlertState(prev => ({ ...prev, visible: false }));
-                }
-            });
-        } else {
-            setAlertState({
-                visible: true,
-                type: 'error',
-                title: 'Error',
-                message: 'Could not retrieve key',
-            });
-        }
-    };
 
     const handleClearHistory = () => {
         setAlertState({

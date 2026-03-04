@@ -3,8 +3,8 @@ import SessionCard from '@/components/SessionCard';
 import { useAuthStore } from '@/store/auth-store';
 import { useNetworkStatus } from '@/lib/offline';
 import { useRouter } from 'expo-router';
-import { Bell, QrCode, ShieldAlert, BadgeCheck, Shield, WifiOff } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { Bell, QrCode, BadgeCheck, Shield, WifiOff } from 'lucide-react-native';
+import { useState } from 'react';
 import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 

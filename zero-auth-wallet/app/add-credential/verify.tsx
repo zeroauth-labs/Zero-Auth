@@ -46,16 +46,14 @@ export default function VerifyScreen() {
                 let commitments: Record<string, string>;
                 
                 if (isUniversity) {
-                    // For Student ID: add is_student=1, expiry_year, and university
-                    const expiryYear = currentYear + 1; // Default to next year
+                    // For Student ID: only include is_student and university
                     const universityName = issuerName || 'University';
                     
-                    // Compute commitment for isStudent and expiryYear
-                    const commitment = await commitAttribute(zkEngine, [1, expiryYear], salt);
+                    // Compute commitment for is_student
+                    const commitment = await commitAttribute(zkEngine, 1, salt);
                     
                     attributes = {
                         is_student: 1,
-                        expiry_year: expiryYear,
                         university: universityName
                     };
                     commitments = {
