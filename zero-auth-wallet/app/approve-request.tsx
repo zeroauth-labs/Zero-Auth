@@ -282,14 +282,14 @@ export default function ApproveRequestScreen() {
         const toString = (value: any) => (typeof value === 'bigint' ? value.toString() : String(value));
         const normalizePair = (pair: any[]) => [toString(pair[0]), toString(pair[1])];
 
-        const piA = Array.isArray(rawProof.pi_a) ? rawProof.pi_a.slice(0, 2) : [];
-        const piB = Array.isArray(rawProof.pi_b) ? rawProof.pi_b.slice(0, 2) : [];
-        const piC = Array.isArray(rawProof.pi_c) ? rawProof.pi_c.slice(0, 2) : [];
+        const piA = Array.isArray(rawProof.pi_a) ? rawProof.pi_a : [];
+        const piB = Array.isArray(rawProof.pi_b) ? rawProof.pi_b : [];
+        const piC = Array.isArray(rawProof.pi_c) ? rawProof.pi_c : [];
 
         return {
-            pi_a: piA.length === 2 ? normalizePair(piA) : piA,
-            pi_b: piB.length === 2 ? [normalizePair(piB[0]), normalizePair(piB[1])] : piB,
-            pi_c: piC.length === 2 ? normalizePair(piC) : piC,
+            pi_a: piA.length >= 2 ? normalizePair(piA) : piA,
+            pi_b: piB.length >= 2 ? [normalizePair(piB[0]), normalizePair(piB[1]), ...(piB[2] ? [normalizePair(piB[2])] : [])] : piB,
+            pi_c: piC.length >= 2 ? normalizePair(piC) : piC,
             protocol: rawProof.protocol,
             curve: rawProof.curve,
             publicSignals: Array.isArray(rawProof.publicSignals)

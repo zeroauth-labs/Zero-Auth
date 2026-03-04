@@ -147,12 +147,24 @@ export async function verifyProof(
       curve: proof.curve || 'bn128'
     });
     
-    // Format the proof for snarkjs
+    // Normalize proof to snarkjs expected format
+    const normalizeG1 = (arr?: unknown[]) => {
+      if (!Array.isArray(arr)) return arr;
+      if (arr.length === 2) return [...arr, '1'];
+      return arr;
+    };
+
+    const normalizeG2 = (arr?: unknown[]) => {
+      if (!Array.isArray(arr)) return arr;
+      if (arr.length === 2) return [...arr, ['1', '0']];
+      return arr;
+    };
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const formattedProof: any = {
-      pi_a: proof.pi_a,
-      pi_b: proof.pi_b,
-      pi_c: proof.pi_c,
+      pi_a: normalizeG1(proof.pi_a as unknown[]),
+      pi_b: normalizeG2(proof.pi_b as unknown[]),
+      pi_c: normalizeG1(proof.pi_c as unknown[]),
       protocol: (proof.protocol as string) || 'groth16',
       curve: (proof.curve as string) || 'bn128',
     };

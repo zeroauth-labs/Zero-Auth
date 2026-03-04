@@ -36,16 +36,16 @@ export function validateProofStructure(proof: unknown): ProofValidationResult {
   const p = proof as Record<string, unknown>;
   
   // Check required fields for groth16
-  if (!p.pi_a || !Array.isArray(p.pi_a) || p.pi_a.length !== 2) {
-    errors.push('Missing or invalid pi_a (expected [bigint, bigint])');
+  if (!p.pi_a || !Array.isArray(p.pi_a) || (p.pi_a.length !== 2 && p.pi_a.length !== 3)) {
+    errors.push('Missing or invalid pi_a (expected [bigint, bigint] or [bigint, bigint, 1])');
   }
   
-  if (!p.pi_b || !Array.isArray(p.pi_b) || p.pi_b.length !== 2) {
-    errors.push('Missing or invalid pi_b (expected [[bigint, bigint], [bigint, bigint]])');
+  if (!p.pi_b || !Array.isArray(p.pi_b) || (p.pi_b.length !== 2 && p.pi_b.length !== 3)) {
+    errors.push('Missing or invalid pi_b (expected [[bigint, bigint], [bigint, bigint]] or with extra [1,0])');
   }
   
-  if (!p.pi_c || !Array.isArray(p.pi_c) || p.pi_c.length !== 2) {
-    errors.push('Missing or invalid pi_c (expected [bigint, bigint])');
+  if (!p.pi_c || !Array.isArray(p.pi_c) || (p.pi_c.length !== 2 && p.pi_c.length !== 3)) {
+    errors.push('Missing or invalid pi_c (expected [bigint, bigint] or [bigint, bigint, 1])');
   }
   
   return { valid: errors.length === 0, errors };
