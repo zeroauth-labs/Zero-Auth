@@ -38,13 +38,6 @@ function CredentialCard({ credential, onRevokeRequest }: { credential: Credentia
                     </View>
                 )}
             </View>
-                {credential.verified && (
-                    <View className="bg-success/20 px-2 py-1 rounded flex-row items-center gap-1">
-                        <BadgeCheck size={14} color="#9ece6a" />
-                        <Text className="text-success text-xs font-bold uppercase">Verified</Text>
-                    </View>
-                )}
-            </View>
 
             <View className="mb-4">
                 <Text className="text-[#565f89] text-xs mb-2">Attributes</Text>

@@ -17,7 +17,7 @@ import CustomAlert from '@/components/CustomAlert';
 function getUseCaseText(useCase?: string, verifierName?: string): string {
     switch (useCase) {
         case 'LOGIN':
-            return `Login to ${verifierName || 'Service'}`;
+            return `Authenticate to ${verifierName || 'Service'}`;
         case 'TRIAL_LICENSE':
             return `Activate trial for ${verifierName || 'Service'}`;
         case 'VERIFICATION':
@@ -28,25 +28,13 @@ function getUseCaseText(useCase?: string, verifierName?: string): string {
 
 // Helper to get colors based on use_case
 function getUseCaseColors(useCase?: string, credentialType?: string): { primary: string; primaryBg: string; primaryBorder: string; icon: string } {
-    // Check if this is a University ID credential - use purple theme
-    const isUniversity = credentialType === 'Student ID';
-    
-    if (isUniversity) {
-        return {
-            primary: '#bb9af7',      // Purple for University ID
-            primaryBg: 'rgba(187, 154, 247, 0.15)',
-            primaryBorder: 'rgba(187, 154, 247, 0.3)',
-            icon: '#bb9af7'
-        };
-    }
-    
     switch (useCase) {
         case 'LOGIN':
             return {
-                primary: '#22d3ee',      // Cyan for login
-                primaryBg: 'rgba(34, 211, 238, 0.15)',
-                primaryBorder: 'rgba(34, 211, 238, 0.3)',
-                icon: '#22d3ee'
+                primary: '#a9b1d6',      // Neutral for login
+                primaryBg: 'rgba(26, 27, 38, 0.6)',
+                primaryBorder: 'rgba(255, 255, 255, 0.08)',
+                icon: '#a9b1d6'
             };
         case 'TRIAL_LICENSE':
             return {
@@ -57,6 +45,14 @@ function getUseCaseColors(useCase?: string, credentialType?: string): { primary:
             };
         case 'VERIFICATION':
         default:
+            if (credentialType === 'Student ID') {
+                return {
+                    primary: '#bb9af7',      // Purple for University ID
+                    primaryBg: 'rgba(187, 154, 247, 0.15)',
+                    primaryBorder: 'rgba(187, 154, 247, 0.3)',
+                    icon: '#bb9af7'
+                };
+            }
             return {
                 primary: '#7aa2f7',      // Blue for verification
                 primaryBg: 'rgba(122, 162, 247, 0.15)',
@@ -70,7 +66,7 @@ function getUseCaseColors(useCase?: string, credentialType?: string): { primary:
 function getActionText(useCase?: string): string {
     switch (useCase) {
         case 'LOGIN':
-            return 'Sign in';
+            return 'Authenticate';
         case 'TRIAL_LICENSE':
             return 'Activate Trial';
         case 'VERIFICATION':
@@ -280,6 +276,28 @@ export default function ApproveRequestScreen() {
     };
 
     // Separate function for proof generation (called after warning acknowledged)
+    const normalizeProof = (rawProof: any) => {
+        if (!rawProof) return rawProof;
+
+        const toString = (value: any) => (typeof value === 'bigint' ? value.toString() : String(value));
+        const normalizePair = (pair: any[]) => [toString(pair[0]), toString(pair[1])];
+
+        const piA = Array.isArray(rawProof.pi_a) ? rawProof.pi_a.slice(0, 2) : [];
+        const piB = Array.isArray(rawProof.pi_b) ? rawProof.pi_b.slice(0, 2) : [];
+        const piC = Array.isArray(rawProof.pi_c) ? rawProof.pi_c.slice(0, 2) : [];
+
+        return {
+            pi_a: piA.length === 2 ? normalizePair(piA) : piA,
+            pi_b: piB.length === 2 ? [normalizePair(piB[0]), normalizePair(piB[1])] : piB,
+            pi_c: piC.length === 2 ? normalizePair(piC) : piC,
+            protocol: rawProof.protocol,
+            curve: rawProof.curve,
+            publicSignals: Array.isArray(rawProof.publicSignals)
+                ? rawProof.publicSignals.map(toString)
+                : rawProof.publicSignals
+        };
+    };
+
     const proceedWithProof = async () => {
         // For no-claims requests, we can proceed without a specific credential
         // Just generate a simple proof with no attributes
@@ -305,7 +323,8 @@ export default function ApproveRequestScreen() {
             if (!salt) throw new Error("Secure salt missing for this credential");
 
             console.log("Generating proof for:", cred.id);
-            proof = await generateProof(zkEngine, request, cred, salt);
+            const rawProof = await generateProof(zkEngine, request, cred, salt);
+            proof = normalizeProof(rawProof);
             
             console.log("Proof generated, type:", proof ? typeof proof : 'undefined');
             console.log("Proof keys:", proof ? Object.keys(proof) : 'none');
@@ -339,31 +358,37 @@ export default function ApproveRequestScreen() {
             console.log("[Proof] Response headers:", JSON.stringify([...response.headers.entries()]));
             
             if (!response.ok) {
-                let errorText;
+                let errorJson: any = null;
+                let errorText = '';
                 try {
-                    const errorJson = await response.json();
-                    errorText = JSON.stringify(errorJson);
+                    errorJson = await response.json();
                     console.error("[Proof] Server error response:", errorJson);
-                    
-                    // Provide more helpful error messages based on error code
-                    if (errorJson.code === 'ZK_VERIFICATION_FAILED') {
-                        throw new Error(`ZK proof verification failed on server. The proof generated by your wallet was rejected. This may indicate a circuit mismatch or corrupted proof data.`);
-                    } else if (errorJson.code === 'ZK_VERIFICATION_KEY_MISSING') {
-                        throw new Error(`Server not configured for ZK verification. Please contact the verifier administrator.`);
-                    } else if (errorJson.code === 'SESSION_NOT_FOUND') {
-                        throw new Error(`Session expired or not found. The verification request may have timed out.`);
-                    } else if (errorJson.code === 'SESSION_ALREADY_COMPLETED') {
-                        throw new Error(`This session has already been completed.`);
-                    } else if (errorJson.code === 'DUPLICATE_PROOF') {
-                        throw new Error(`This proof has already been submitted for this session.`);
-                    } else if (errorJson.code === 'INVALID_PROOF_SCHEMA') {
-                        throw new Error(`Proof structure is invalid: ${JSON.stringify(errorJson.details?.errors || [])}`);
-                    }
                 } catch (e) {
-                    errorText = await response.text();
-                    console.error("[Proof] Non-JSON error response:", errorText);
+                    try {
+                        errorText = await response.text();
+                        console.error("[Proof] Non-JSON error response:", errorText);
+                    } catch (readError) {
+                        errorText = '';
+                    }
                 }
-                throw new Error(`Server rejected proof (${response.status}): ${errorText.substring(0, 200)}`);
+
+                const errorCode = errorJson?.code;
+                if (errorCode === 'ZK_VERIFICATION_FAILED') {
+                    throw new Error(`ZK proof verification failed on server. The proof generated by your wallet was rejected. This may indicate a circuit mismatch or corrupted proof data.`);
+                } else if (errorCode === 'ZK_VERIFICATION_KEY_MISSING') {
+                    throw new Error(`Server not configured for ZK verification. Please contact the verifier administrator.`);
+                } else if (errorCode === 'SESSION_NOT_FOUND') {
+                    throw new Error(`Session expired or not found. The verification request may have timed out.`);
+                } else if (errorCode === 'SESSION_ALREADY_COMPLETED') {
+                    throw new Error(`This session has already been completed.`);
+                } else if (errorCode === 'DUPLICATE_PROOF') {
+                    throw new Error(`This proof has already been submitted for this session.`);
+                } else if (errorCode === 'INVALID_PROOF_SCHEMA') {
+                    throw new Error(`Proof structure is invalid: ${JSON.stringify(errorJson?.details?.errors || [])}`);
+                }
+
+                const errorMessage = errorText || (errorJson ? JSON.stringify(errorJson) : 'Unknown error');
+                throw new Error(`Server rejected proof (${response.status}): ${errorMessage.substring(0, 200)}`);
             }
 
             console.log("Proof Submitted Successfully");
@@ -421,7 +446,7 @@ export default function ApproveRequestScreen() {
                         <ShieldCheck size={40} color={useCaseColors.icon} />
                     </View>
                     <Text className="text-muted-foreground uppercase text-xs font-bold tracking-widest mb-2">
-                        {request.use_case === 'LOGIN' ? 'Login Request' : request.use_case === 'TRIAL_LICENSE' ? 'Trial Access' : 'Verification Request'}
+                        {request.use_case === 'LOGIN' ? 'Authentication Request' : request.use_case === 'TRIAL_LICENSE' ? 'Trial Access' : 'Verification Request'}
                     </Text>
                     <Text className="text-foreground text-2xl font-bold text-center">{headerText}</Text>
                     <Text className="text-xs font-mono mt-1" style={{ color: useCaseColors.primary }}>{request.verifier.did}</Text>
@@ -445,16 +470,20 @@ export default function ApproveRequestScreen() {
 
                 {/* Request Details */}
                 <View className="bg-card p-5 rounded-2xl border border-white/5 mb-6">
-                    <Text className="text-muted-foreground text-xs font-bold uppercase mb-4">Requesting to Verify</Text>
+                    <Text className="text-muted-foreground text-xs font-bold uppercase mb-4">
+                        {request.use_case === 'LOGIN' ? 'Requesting Authentication' : 'Requesting to Verify'}
+                    </Text>
 
                     {isNoClaimsRequest ? (
                         <View 
                             className="px-4 py-3 rounded-xl border mb-4"
                             style={{ backgroundColor: useCaseColors.primaryBg, borderColor: useCaseColors.primaryBorder }}
                         >
-                            <Text className="text-sm font-medium" style={{ color: useCaseColors.primary }}>
-                                No specific attributes required - just verify you have a valid credential
-                            </Text>
+                                <Text className="text-sm font-medium" style={{ color: useCaseColors.primary }}>
+                                    {request.use_case === 'LOGIN'
+                                        ? 'No specific attributes required - authenticate with your credential'
+                                        : 'No specific attributes required - just verify you have a valid credential'}
+                                </Text>
                         </View>
                     ) : (
                         <View className="flex-row flex-wrap gap-2 mb-4">
