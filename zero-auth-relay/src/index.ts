@@ -159,6 +159,14 @@ app.post('/api/v1/sessions/:id/proof', validateProofSubmission, async (req, res)
     console.log('[Proof] Required claims:', claimsArray);
 
     if (claimsArray.length > 0) {
+      const publicSignals = Array.isArray((proofData as Record<string, unknown>)?.publicSignals)
+        ? ((proofData as Record<string, unknown>).publicSignals as string[])
+        : [];
+
+      if (publicSignals.length === 0) {
+        console.log('[Proof] WARNING: Missing publicSignals in proof payload');
+      }
+
       // Proof Schema Validation - validate structure before processing
       const schemaResult = validateProofStructure(proofData);
       
@@ -176,7 +184,7 @@ app.post('/api/v1/sessions/:id/proof', validateProofSubmission, async (req, res)
       console.log('[Proof] Starting ZK verification for credential type:', session.credential_type);
       const isValid = await verifyProof(
         proofData as Record<string, unknown>,
-        [],
+        publicSignals,
         session.credential_type
       );
       
