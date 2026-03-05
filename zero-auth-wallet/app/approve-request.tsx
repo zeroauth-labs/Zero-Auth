@@ -281,10 +281,22 @@ export default function ApproveRequestScreen() {
 
         const toString = (value: any) => (typeof value === 'bigint' ? value.toString() : String(value));
         const normalizePair = (pair: any[]) => [toString(pair[0]), toString(pair[1])];
+        const normalizeArrayLike = (value: any) => {
+            if (Array.isArray(value)) return value;
+            if (value && typeof value === 'object') {
+                const keys = Object.keys(value)
+                    .filter((key) => String(Number(key)) === key)
+                    .sort((a, b) => Number(a) - Number(b));
+                if (keys.length > 0) {
+                    return keys.map((key) => value[key]);
+                }
+            }
+            return [];
+        };
 
-        const piA = Array.isArray(rawProof.pi_a) ? rawProof.pi_a : [];
-        const piB = Array.isArray(rawProof.pi_b) ? rawProof.pi_b : [];
-        const piC = Array.isArray(rawProof.pi_c) ? rawProof.pi_c : [];
+        const piA = normalizeArrayLike(rawProof.pi_a);
+        const piB = normalizeArrayLike(rawProof.pi_b);
+        const piC = normalizeArrayLike(rawProof.pi_c);
 
         return {
             pi_a: piA.length >= 2 ? normalizePair(piA) : piA,

@@ -204,24 +204,22 @@ export const ZKProvider: React.FC<{ children: React.ReactNode }> = ({ children }
                      console.log('Starting Groth16 Proof...');
                       const { proof, publicSignals } = await snarkjs.groth16.fullProve(inputs, wasm, zkey);
                       
-                      // Convert BigInt values to strings for JSON serialization
-                      const serializeProof = (p) => {
-                        const result = {};
-                        for (const key in p) {
-                          const val = p[key];
-                          if (typeof val === 'bigint') {
-                            result[key] = val.toString();
-                          } else if (Array.isArray(val)) {
-                            result[key] = val.map(v => typeof v === 'bigint' ? v.toString() : v);
-                          } else {
-                            result[key] = val;
-                          }
-                        }
-                        return result;
-                      };
-                      
-                      const serializedProof = serializeProof(proof);
-                      const serializedSignals = publicSignals.map(s => typeof s === 'bigint' ? s.toString() : s);
+                       // Convert BigInt values to strings for JSON serialization (deep)
+                       const serializeValue = (val) => {
+                         if (typeof val === 'bigint') return val.toString();
+                         if (Array.isArray(val)) return val.map(serializeValue);
+                         if (val && typeof val === 'object') {
+                           const obj = {};
+                           for (const k in val) {
+                             obj[k] = serializeValue(val[k]);
+                           }
+                           return obj;
+                         }
+                         return val;
+                       };
+                       
+                       const serializedProof = serializeValue(proof);
+                       const serializedSignals = serializeValue(publicSignals);
 
                       window.ReactNativeWebView.postMessage(JSON.stringify({
                         id, type: 'RESULT', payload: { proof: serializedProof, publicSignals: serializedSignals }
