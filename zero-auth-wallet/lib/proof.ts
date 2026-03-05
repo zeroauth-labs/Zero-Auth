@@ -85,10 +85,13 @@ export async function generateProof(
     } else if (request.credential_type === 'Student ID') {
         wasmAsset = Asset.fromModule(require('../circuits/student_check_js/student_check.wasm'));
         zkeyAsset = Asset.fromModule(require('../circuits/student_check_final.zkey'));
-    } else if (request.credential_type === 'Aadhaar') {
-        wasmAsset = Asset.fromModule(require('../circuits/aadhaar_check_js/aadhaar_check.wasm'));
-        zkeyAsset = Asset.fromModule(require('../circuits/aadhaar_check_final.zkey'));
-    } else if (request.credential_type === 'Trial') {
+    } 
+    // TODO: Uncomment once Aadhaar circuit is compiled
+    // else if (request.credential_type === 'Aadhaar') {
+    //     wasmAsset = Asset.fromModule(require('../circuits/aadhaar_check_js/aadhaar_check.wasm'));
+    //     zkeyAsset = Asset.fromModule(require('../circuits/aadhaar_check_final.zkey'));
+    // }
+    else if (request.credential_type === 'Trial') {
         // Trial credentials - simple verification without ZK circuit
         // Just return a simple proof that the credential exists and is not expired
         // Note: We don't need to validate expiry here since it's done at the start of generateProof
@@ -184,40 +187,35 @@ async function prepareInputs(request: VerificationRequest, credential: Credentia
             salt: salt,
             commitment: commitment
         };
-    } else if (request.credential_type === 'Aadhaar') {
-        // Aadhaar: derive age attributes from birth_year
-        const birthYearAttribute = credential.attributes['birth_year'];
-        let birthYear = Number(birthYearAttribute);
-
-        if (isNaN(birthYear)) {
-            console.warn(`[Proof] Invalid birthYear attribute: ${birthYearAttribute}, defaulting to 2000`);
-            birthYear = 2000;
-        }
-
-        if (birthYear > currentYear) {
-            console.error(`[Proof] Future birth year detected: ${birthYear} (Current: ${currentYear})`);
-            throw new Error(`Invalid Birth Year: ${birthYear} is in the future.`);
-        }
-
-        const age = currentYear - birthYear;
-        const ageOver18 = age >= 18 ? 1 : 0;
-        const ageOver23 = age >= 23 ? 1 : 0;
-
-        console.log(`[Proof] Aadhaar Inputs - Current: ${currentYear}, Birth: ${birthYear}, Age: ${age}, Over18: ${ageOver18}, Over23: ${ageOver23}`);
-        
-        const commitment = await commitAttribute(engine, birthYear, salt);
-
-        return {
-            currentYear: currentYear,
-            minAge: 18,
-            birthYear: birthYear,
-            salt: salt,
-            commitment: commitment,
-            ageOver18: ageOver18,
-            ageOver23: ageOver23,
-            indianCitizen: 1 // Always 1 after verification
-        };
-    }
+    } 
+    // TODO: Uncomment once Aadhaar circuit is compiled
+    // else if (request.credential_type === 'Aadhaar') {
+    //     const birthYearAttribute = credential.attributes['birth_year'];
+    //     let birthYear = Number(birthYearAttribute);
+    //     if (isNaN(birthYear)) {
+    //         console.warn(`[Proof] Invalid birthYear attribute: ${birthYearAttribute}, defaulting to 2000`);
+    //         birthYear = 2000;
+    //     }
+    //     if (birthYear > currentYear) {
+    //         console.error(`[Proof] Future birth year detected: ${birthYear} (Current: ${currentYear})`);
+    //         throw new Error(`Invalid Birth Year: ${birthYear} is in the future.`);
+    //     }
+    //     const age = currentYear - birthYear;
+    //     const ageOver18 = age >= 18 ? 1 : 0;
+    //     const ageOver23 = age >= 23 ? 1 : 0;
+    //     console.log(`[Proof] Aadhaar Inputs - Current: ${currentYear}, Birth: ${birthYear}, Age: ${age}, Over18: ${ageOver18}, Over23: ${ageOver23}`);
+    //     const commitment = await commitAttribute(engine, birthYear, salt);
+    //     return {
+    //         currentYear: currentYear,
+    //         minAge: 18,
+    //         birthYear: birthYear,
+    //         salt: salt,
+    //         commitment: commitment,
+    //         ageOver18: ageOver18,
+    //         ageOver23: ageOver23,
+    //         indianCitizen: 1
+    //     };
+    // }
     throw new Error(`Inputs not defined for: ${request.credential_type}`);
 }
 

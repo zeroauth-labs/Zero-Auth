@@ -107,7 +107,6 @@ export default function VerifyScreen() {
                 
                 let attributes: Record<string, number | string>;
                 let commitments: Record<string, string>;
-                let credentialType: string;
 
                 if (isUniversity) {
                     credentialType = 'Student ID';
