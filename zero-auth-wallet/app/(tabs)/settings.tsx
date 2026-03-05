@@ -1,8 +1,8 @@
 import { useWalletStore } from '@/store/wallet-store';
 import { useAuthStore } from '@/store/auth-store';
 import { useRouter } from 'expo-router';
-import { Info, RefreshCw, Smartphone, Trash2, Calendar } from 'lucide-react-native';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Info, RefreshCw, Smartphone, Trash2, Calendar, Sun, Moon } from 'lucide-react-native';
+import { ScrollView, Text, TouchableOpacity, View, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { Copy } from 'lucide-react-native';
@@ -15,6 +15,8 @@ export default function SettingsScreen() {
     const resetWallet = useWalletStore((state) => state.resetWallet);
     const clearAllData = useAuthStore((state) => state.clearAllData);
     const clearHistory = useAuthStore((state) => state.clearHistory);
+    const theme = useAuthStore((state) => state.theme);
+    const toggleTheme = useAuthStore((state) => state.toggleTheme);
     const router = useRouter();
 
     // Alert state
@@ -131,6 +133,27 @@ export default function SettingsScreen() {
                     </View>
                 </View>
 
+                {/* Appearance */}
+                <Text className="text-sm font-bold text-muted-foreground uppercase mb-3 px-1">Appearance</Text>
+
+                <View className="bg-card p-4 rounded-xl border border-white/5 flex-row items-center justify-between mb-6">
+                    <View className="flex-row items-center gap-4">
+                        <View className="w-10 h-10 bg-muted/10 rounded-full items-center justify-center">
+                            {theme === 'dark' ? <Moon size={20} color="#7aa2f7" /> : <Sun size={20} color="#e0af68" />}
+                        </View>
+                        <View>
+                            <Text className="text-foreground font-bold">Dark Mode</Text>
+                            <Text className="text-muted-foreground text-xs">{theme === 'dark' ? 'Enabled' : 'Disabled'}</Text>
+                        </View>
+                    </View>
+                    <Switch
+                        value={theme === 'dark'}
+                        onValueChange={toggleTheme}
+                        trackColor={{ false: '#565f89', true: '#7aa2f7' }}
+                        thumbColor="#ffffff"
+                    />
+                </View>
+
                 {/* Actions */}
                 <Text className="text-sm font-bold text-muted-foreground uppercase mb-3 px-1">Actions</Text>
 
@@ -181,7 +204,7 @@ export default function SettingsScreen() {
                     <Info size={14} color="#94a3b8" />
                     <Text className="text-slate-400 font-bold">Zero Auth Wallet</Text>
                 </View>
-                <Text className="text-slate-500 text-xs">Version 1.2.000</Text>
+                <Text className="text-slate-500 text-xs">Version 1.3.000</Text>
             </View>
 
             {/* Custom Alert Modal */}

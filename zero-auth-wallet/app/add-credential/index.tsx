@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ArrowRight, GraduationCap, X } from 'lucide-react-native';
+import { ArrowRight, GraduationCap, Shield, X } from 'lucide-react-native';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -11,7 +11,13 @@ const CATEGORIES = [
         icon: GraduationCap,
         color: '#7aa2f7',
     },
-    // Government ID option removed - keeping it simple
+    {
+        id: 'government',
+        title: 'Government ID',
+        description: 'Verify your identity with Aadhaar for age and citizenship proofs.',
+        icon: Shield,
+        color: '#bb9af7',
+    },
 ];
 
 // Import JSON option removed

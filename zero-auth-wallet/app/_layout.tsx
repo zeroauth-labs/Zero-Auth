@@ -179,14 +179,17 @@ export default function RootLayout() {
     }
   }, [isReady, isLoading, isInitialized, hasHydrated]);
 
+  const theme = useAuthStore((state) => state.theme);
+  const isDark = theme === 'dark';
+
   if (!isReady || !hasHydrated) {
     return null;
   }
 
   return (
     <ZKProvider>
-      <View className="flex-1 bg-[#1a1b26]">
-        <StatusBar style="light" />
+      <View className={`flex-1 ${isDark ? 'bg-[#1a1b26]' : 'bg-[#f8fafc]'}`}>
+        <StatusBar style={isDark ? "light" : "dark"} />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
           <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />

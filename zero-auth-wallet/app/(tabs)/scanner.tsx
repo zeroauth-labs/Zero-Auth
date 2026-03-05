@@ -1,22 +1,58 @@
 import { parseVerificationQR } from '@/lib/qr-protocol';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
-import { ScanLine, X } from 'lucide-react-native';
-import { useState } from 'react';
+import { ScanLine, X, Wifi, WifiOff } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomAlert from '@/components/CustomAlert';
+
+const RELAY_URL = 'https://zeroauth-relay.onrender.com';
+const STATUS_CACHE_KEY = 'relay_status_cache';
+const STATUS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+interface RelayStatus {
+    online: boolean;
+    lastChecked: number;
+}
 
 export default function ScannerScreen() {
     const router = useRouter();
     const [permission, requestPermission] = useCameraPermissions();
     const [scanned, setScanned] = useState(false);
+    const [relayOnline, setRelayOnline] = useState<boolean | null>(null);
     const [alertState, setAlertState] = useState<{
         visible: boolean;
         type: 'error' | 'success' | 'warning' | 'info';
         title: string;
         message: string;
     }>({ visible: false, type: 'info', title: '', message: '' });
+
+    // Check relay status on mount (with caching to avoid rate limits)
+    useEffect(() => {
+        const checkRelayStatus = async () => {
+            try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 5000);
+                
+                const response = await fetch(`${RELAY_URL}/api/health`, {
+                    method: 'GET',
+                    signal: controller.signal
+                });
+                clearTimeout(timeout);
+                
+                setRelayOnline(response.ok);
+            } catch (error) {
+                setRelayOnline(false);
+            }
+        };
+        
+        checkRelayStatus();
+        
+        // Check relay status every 5 minutes
+        const interval = setInterval(checkRelayStatus, STATUS_CACHE_DURATION);
+        return () => clearInterval(interval);
+    }, []);
 
     const handleBarCodeScanned = ({ data }: { data: string }) => {
         setScanned(true);
@@ -76,8 +112,13 @@ export default function ScannerScreen() {
                             >
                                 <X size={20} color="white" />
                             </TouchableOpacity>
-                            <View className="bg-black/40 px-4 py-2 rounded-full backdrop-blur-md">
+                            <View className="bg-black/40 px-4 py-2 rounded-full backdrop-blur-md flex-row items-center gap-2">
                                 <Text className="text-white font-medium">Scan QR Code</Text>
+                                {relayOnline !== null && (
+                                    relayOnline 
+                                        ? <Wifi size={14} color="#9ece6a" />
+                                        : <WifiOff size={14} color="#f7768e" />
+                                )}
                             </View>
                             <View className="w-10" />
                         </View>

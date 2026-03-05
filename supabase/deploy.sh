@@ -65,6 +65,9 @@ supabase functions deploy revoke-credential
 echo "   📤 admin-students..."
 supabase functions deploy admin-students
 
+echo "   📤 verify-aadhaar..."
+supabase functions deploy verify-aadhaar --no-verify-jwt
+
 echo ""
 echo "✅ All Edge Functions deployed!"
 

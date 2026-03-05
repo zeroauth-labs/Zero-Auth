@@ -11,8 +11,8 @@ const ISSUERS = {
         { id: 'ktu', name: 'APJ Abdul Kalam Technological University (KTU)' },
     ],
     government: [
-        // Government IDs removed - keeping only University ID for now
-    ]
+        { id: 'aadhaar', name: 'Aadhaar (UIDAI)' },
+    ],
 };
 
 export default function IssuerSelectScreen() {
@@ -23,12 +23,19 @@ export default function IssuerSelectScreen() {
         visible: boolean;
     }>({ visible: false });
 
-    // LOGIC: Check if user already has a University ID
+    // LOGIC: Check if user already has credentials of certain types
     const hasUniversityId = credentials.some(c => c.type === 'Student ID');
+    const hasAadhaar = credentials.some(c => c.type === 'Aadhaar');
 
     const handleSelect = (issuer: any) => {
         if (category === 'university' && hasUniversityId) {
             setAlertState({ visible: true });
+            return;
+        }
+        if (category === 'government' && issuer.id === 'aadhaar' && hasAadhaar) {
+            setAlertState({ 
+                visible: true,
+            });
             return;
         }
 
@@ -66,7 +73,10 @@ export default function IssuerSelectScreen() {
             <CustomAlert 
                 visible={alertState.visible}
                 title="Limit Reached"
-                message="You can only hold one active University ID. Please revoke your existing ID to add a new one."
+                message={category === 'university' 
+                    ? "You can only hold one active University ID. Please revoke your existing ID to add a new one."
+                    : "You can only hold one active Aadhaar credential. Please revoke your existing credential to add a new one."
+                }
                 confirmText="OK"
                 cancelText=""
                 onConfirm={() => setAlertState({ visible: false })}

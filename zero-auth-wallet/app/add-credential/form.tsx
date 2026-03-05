@@ -23,7 +23,11 @@ export default function CredentialForm() {
         setDob(formatted.slice(0, 10));
     };
 
-    const canSubmit = idNumber.length > 3 && dob.length === 10;
+    const isAadhaar = category === 'government' && issuerId === 'aadhaar';
+    
+    const canSubmit = isAadhaar 
+        ? idNumber.length === 12 && dob.length === 10  // Aadhaar is 12 digits
+        : idNumber.length > 3 && dob.length === 10;
 
     const handleSubmit = () => {
         router.push({
@@ -49,15 +53,17 @@ export default function CredentialForm() {
 
                     <View className="mb-6">
                         <Text className="text-foreground font-medium mb-2">
-                            {category === 'university' ? 'Registration Number' : 'Document Number'}
+                            {category === 'university' ? 'Registration Number' : isAadhaar ? 'Aadhaar Number' : 'Document Number'}
                         </Text>
                         <TextInput
                             className="bg-card border border-border rounded-xl p-4 text-foreground text-lg placeholder:text-muted-foreground"
-                            placeholder={category === 'university' ? 'e.g. TVA19CS001' : 'e.g. 1234 5678 9012'}
+                            placeholder={category === 'university' ? 'e.g. TVA19CS001' : isAadhaar ? 'e.g. 123456789012' : 'e.g. 1234 5678 9012'}
                             placeholderTextColor="#565f89"
                             value={idNumber}
                             onChangeText={setIdNumber}
                             autoCapitalize="characters"
+                            keyboardType={isAadhaar ? 'numeric' : 'default'}
+                            maxLength={isAadhaar ? 12 : undefined}
                         />
                     </View>
 

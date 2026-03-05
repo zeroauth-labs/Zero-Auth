@@ -63,6 +63,10 @@ export interface AuthState {
     biometricsEnabled: boolean;
     toggleBiometrics: () => void;
     
+    // Theme
+    theme: 'dark' | 'light';
+    toggleTheme: () => void;
+    
     // PIN management
     pinHash: string | null;
     setPin: (pin: string) => Promise<void>;
@@ -260,6 +264,10 @@ export const useAuthStore = create<AuthState>()(
 
             toggleBiometrics: () => set((state) => ({ biometricsEnabled: !state.biometricsEnabled })),
             
+            // Theme
+            theme: 'dark',
+            toggleTheme: () => set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),
+            
             // PIN management
             pinHash: null,
             
@@ -292,6 +300,7 @@ export const useAuthStore = create<AuthState>()(
                 notifications: state.notifications,
                 biometricsEnabled: state.biometricsEnabled,
                 pinHash: state.pinHash,
+                theme: state.theme,
             }),
             onRehydrateStorage: () => (state) => {
                 state?.setHasHydrated(true);

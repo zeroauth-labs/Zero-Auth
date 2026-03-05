@@ -58,7 +58,11 @@
     "extra": {
       "eas": {
         "projectId": "8d8644dd-aecd-4a14-ac43-32a15e24a0c4"
-      }
+      },
+      "SUPABASE_URL": "https://ppfnqpwyaqixwoprxycb.supabase.co",
+      "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwZm5xcHd5YXFpeHdvcHJ4eWNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MzYyNjMsImV4cCI6MjA4ODIxMjI2M30.uZhts9s26YQFuPaU1OVmNwJpCsWxX7ASZzO0UzF4SdY",
+      "AADHAAR_SUPABASE_URL": "https://xqpewuuncreizkgqarre.supabase.co",
+      "AADHAAR_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhxcGV3dXVuY3JlaXprZ3FhcnJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MDQ2MDQsImV4cCI6MjA4ODI4MDYwNH0.dXGFfVRFmywktu_r-lBNMt5ntxBoer_xqBSgVF5HvhQ"
     }
   }
 }

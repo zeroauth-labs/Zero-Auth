@@ -1,5 +1,5 @@
 import { commitAttribute } from '@/lib/hashing';
-import { getSupabaseConfig } from '@/lib/supabase';
+import { getSupabaseConfig, getSupabaseConfigForCredential } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth-store';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { BadgeCheck, Check, Fingerprint, Hash, ShieldCheck, X } from 'lucide-react-native';
@@ -30,9 +30,15 @@ export default function VerifyScreen() {
     useEffect(() => {
         const runVerification = async () => {
             try {
+                // Determine credential type
+                const isUniversity = category === 'university';
+                const isAadhaar = category === 'government' && issuerId === 'aadhaar';
+                const credentialType = isAadhaar ? 'Aadhaar' : 'Student ID';
+
                 // Step 0: Verify with issuer (Supabase)
                 setCurrentStep(0);
-                const { supabaseUrl, supabaseAnonKey } = getSupabaseConfig();
+                // Use appropriate Supabase based on credential type
+                const { supabaseUrl, supabaseAnonKey } = getSupabaseConfigForCredential(credentialType);
 
                 if (!supabaseUrl || !supabaseAnonKey) {
                     throw new Error('Missing Supabase configuration. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY.');
@@ -48,20 +54,39 @@ export default function VerifyScreen() {
                 const [day, month, year] = dob.split('/');
                 const isoDob = `${year}-${month}-${day}`;
 
-                const verifyResponse = await fetch(`${supabaseUrl}/functions/v1/verify-student`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${supabaseAnonKey}`
-                    },
-                    body: JSON.stringify({
-                        id_number: idNumber,
-                        date_of_birth: isoDob,
-                        credential_type: 'Student ID',
-                        claims: ['is_student', 'university'],
-                        idempotency_key: generateSecureId()
-                    })
-                });
+                // Call appropriate verification function
+                let verifyResponse;
+                if (isAadhaar) {
+                    verifyResponse = await fetch(`${supabaseUrl}/functions/v1/verify-aadhaar`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${supabaseAnonKey}`
+                        },
+                        body: JSON.stringify({
+                            aadhaar_number: idNumber,
+                            date_of_birth: isoDob,
+                            credential_type: 'Aadhaar',
+                            claims: ['birth_year', 'age_over_18', 'age_over_23', 'indian_citizen'],
+                            idempotency_key: generateSecureId()
+                        })
+                    });
+                } else {
+                    verifyResponse = await fetch(`${supabaseUrl}/functions/v1/verify-student`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${supabaseAnonKey}`
+                        },
+                        body: JSON.stringify({
+                            id_number: idNumber,
+                            date_of_birth: isoDob,
+                            credential_type: 'Student ID',
+                            claims: ['is_student', 'university'],
+                            idempotency_key: generateSecureId()
+                        })
+                    });
+                }
 
                 const verifyResult = await verifyResponse.json();
                 if (!verifyResponse.ok || !verifyResult?.success) {
@@ -79,12 +104,13 @@ export default function VerifyScreen() {
 
                 // Step 2: Compute Commitment
                 setCurrentStep(2);
-                const isUniversity = category === 'university';
                 
                 let attributes: Record<string, number | string>;
                 let commitments: Record<string, string>;
-                
+                let credentialType: string;
+
                 if (isUniversity) {
+                    credentialType = 'Student ID';
                     const commitment = await commitAttribute(zkEngine, 1, salt);
 
                     attributes = {
@@ -93,6 +119,21 @@ export default function VerifyScreen() {
                     };
                     commitments = {
                         is_student: commitment
+                    };
+                } else if (isAadhaar) {
+                    credentialType = 'Aadhaar';
+                    // Extract birth_year from DOB
+                    const birthYear = Number(issuedCredential.attributes.birth_year) || Number(year);
+                    const commitment = await commitAttribute(zkEngine, birthYear, salt);
+
+                    attributes = {
+                        birth_year: birthYear,
+                        age_over_18: issuedCredential.attributes.age_over_18 ?? 0,
+                        age_over_23: issuedCredential.attributes.age_over_23 ?? 0,
+                        indian_citizen: issuedCredential.attributes.indian_citizen ?? 1
+                    };
+                    commitments = {
+                        birth_year: commitment
                     };
                 } else {
                     throw new Error('Unsupported credential type');
@@ -106,7 +147,7 @@ export default function VerifyScreen() {
                 addCredential({
                     id: credentialId,
                     issuer: issuedCredential.issuer || issuerName || 'Unknown Issuer',
-                    type: 'Student ID',
+                    type: credentialType,
                     issuedAt: new Date(issuedCredential.issuedAt).getTime(),
                     expiresAt: issuedCredential.expiresAt ? new Date(issuedCredential.expiresAt).getTime() : undefined,
                     attributes,
