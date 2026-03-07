@@ -120,7 +120,8 @@ export default function VerifyScreen() {
                         is_student: commitment
                     };
                 } else if (isAadhaar) {
-                    credentialType = 'Aadhaar';
+                    // Store as Age Verification since Aadhaar provides age-based claims
+                    credentialType = 'Age Verification';
                     // Extract birth_year from DOB
                     const birthYear = Number(issuedCredential.attributes.birth_year) || Number(year);
                     const commitment = await commitAttribute(zkEngine, birthYear, salt);
