@@ -22,6 +22,16 @@
       --text-muted: #71717a;
     }
 
+    .light-mode {
+      --bg-dark: #f4f4f5;
+      --bg-card: #ffffff;
+      --bg-elevated: #fafafa;
+      --border: #e4e4e7;
+      --text: #18181b;
+      --text-dim: #52525b;
+      --text-muted: #a1a1aa;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
@@ -80,6 +90,30 @@
       border-radius: 4px;
       font-size: 11px;
       font-weight: 600;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* Light mode toggle */
+    .theme-toggle {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .theme-toggle:hover {
+      border-color: var(--primary);
+      color: var(--text);
     }
 
     /* Tabs */
@@ -485,6 +519,11 @@
       background: white;
       padding: 16px;
       border-radius: 8px;
+      width: 200px;
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .qr-image canvas, .qr-image img {
@@ -712,13 +751,19 @@
         <span class="logo-text">ZeroAuth</span>
         <span class="logo-badge">Sandbox</span>
       </div>
-      <nav class="tabs">
-        <button class="tab-btn active" data-tab="sandbox">Sandbox</button>
-        <button class="tab-btn" data-tab="api">API Tester</button>
-        <button class="tab-btn" data-tab="qr">QR Inspector</button>
-        <button class="tab-btn" data-tab="sessions">Sessions</button>
-        <button class="tab-btn" data-tab="docs">Docs</button>
-      </nav>
+      <div class="header-right">
+        <button class="theme-toggle" onclick="toggleTheme()">
+          <span id="theme-icon">🌙</span>
+          <span id="theme-text">Light</span>
+        </button>
+        <nav class="tabs">
+          <button class="tab-btn active" data-tab="sandbox">Sandbox</button>
+          <button class="tab-btn" data-tab="api">API Tester</button>
+          <button class="tab-btn" data-tab="qr">QR Inspector</button>
+          <button class="tab-btn" data-tab="sessions">Sessions</button>
+          <button class="tab-btn" data-tab="docs">Docs</button>
+        </nav>
+      </div>
     </div>
   </header>
 
@@ -741,10 +786,6 @@
             </label>
             <input type="text" class="form-input" id="relayUrl" value="https://zeroauth-relay.onrender.com">
           </div>
-          <div class="form-group">
-            <label class="form-label">API Key (optional)</label>
-            <input type="text" class="form-input" id="apiKey" placeholder="For signed QR payloads">
-          </div>
         </div>
       </div>
 
@@ -766,8 +807,6 @@
             <div class="chip-group" id="credTypes">
               <div class="chip active" data-value="Age Verification">Age Verification</div>
               <div class="chip" data-value="Student ID">Student ID</div>
-              <div class="chip" data-value="Trial">Trial</div>
-              <div class="chip" data-value="Email Alternative">Email</div>
             </div>
           </div>
           <div class="form-group">
@@ -776,24 +815,17 @@
               <span class="help" data-tooltip="Specific attributes to verify">?</span>
             </label>
             <div class="chip-group" id="claims">
-              <div class="chip active" data-value="birth_year">birth_year</div>
-              <div class="chip" data-value="age_over_18">age_over_18</div>
+              <div class="chip active" data-value="birth year">birth year</div>
+              <div class="chip" data-value="age over 18">age over 18</div>
               <div class="chip active" data-value="country">country</div>
-              <div class="chip" data-value="is_student">is_student</div>
+              <div class="chip" data-value="is student">is student</div>
               <div class="chip" data-value="university">university</div>
-              <div class="chip" data-value="email">email</div>
+              <div class="chip" data-value="age over 23">age over 23</div>
+              <div class="chip" data-value="indian citizen">indian citizen</div>
             </div>
             <div id="claimsHelp" class="text-xs text-[var(--text-muted)] mt-2">
-              Age Verification returns birth_year (or age_over_18), country after verification
+              Age Verification returns birth year (or age over 18), country after verification
             </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Use Case</label>
-            <select class="form-select" id="useCase">
-              <option value="LOGIN">LOGIN - Authenticate user</option>
-              <option value="VERIFICATION">VERIFICATION - Prove attributes</option>
-              <option value="TRIAL_LICENSE">TRIAL_LICENSE - Activate trial</option>
-            </select>
           </div>
           <div class="form-group">
             <label class="form-label">Timeout (seconds)</label>
@@ -1015,7 +1047,6 @@
             <div class="doc-title">Configuration Options</div>
             <div class="doc-text">
               <strong>relayUrl</strong> — URL of the relay server that manages verification sessions.<br>
-              <strong>apiKey</strong> (optional) — API key for verifier authentication, enables QR payload signing.<br>
               <strong>verifierName</strong> — Name shown to users in the wallet.<br>
               <strong>timeout</strong> — Session timeout in seconds (10-300).
             </div>
@@ -1023,18 +1054,8 @@
           <div class="doc-section">
             <div class="doc-title">Credential Types</div>
             <div class="doc-text">
-              <strong>Age Verification</strong> — Requires birth_year or age_over_18 claims<br>
-              <strong>Student ID</strong> — Requires expiry_year or university claims<br>
-              <strong>Trial</strong> — Requires trial_period claim<br>
-              <strong>Email Alternative</strong> — Requires email claim
-            </div>
-          </div>
-          <div class="doc-section">
-            <div class="doc-title">Use Cases</div>
-            <div class="doc-text">
-              <strong>LOGIN</strong> — Authenticates the user (e.g., "Sign in to...")<br>
-              <strong>VERIFICATION</strong> — Verifies attributes without authentication (e.g., "Verify your age to...")<br>
-              <strong>TRIAL_LICENSE</strong> — Activates a trial (e.g., "Activate trial for...")
+              <strong>Age Verification</strong> — Proves age without revealing birth date<br>
+              <strong>Student ID</strong> — Proves student status and university
             </div>
           </div>
           <div class="doc-section">
@@ -1051,9 +1072,7 @@
   },
   "required_claims": ["birth_year", "country"],
   "credential_type": "Age Verification",
-  "expires_at": 1700000000,
-  "use_case": "LOGIN",
-  "signature": "..."         // Optional, if API key provided
+  "expires_at": 1700000000
 }</div>
           </div>
           <div class="doc-section">
@@ -1103,8 +1122,7 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
     // ============================================
     const state = {
       credentialType: 'Age Verification',
-      claims: ['birth_year', 'country'],
-      useCase: 'LOGIN',
+      claims: ['birth year', 'country'],
       qrSize: 200,
       qrColor: '#000000',
       qrBgColor: '#ffffff',
@@ -1125,6 +1143,14 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
       line.innerHTML = `<span class="console-time">${time}</span><span class="console-${type}">${msg}</span>`;
       consoleBody.appendChild(line);
       consoleBody.scrollTop = consoleBody.scrollHeight;
+    }
+
+    // Light mode toggle
+    function toggleTheme() {
+      document.body.classList.toggle('light-mode');
+      const isLight = document.body.classList.contains('light-mode');
+      document.getElementById('theme-icon').textContent = isLight ? '☀️' : '🌙';
+      document.getElementById('theme-text').textContent = isLight ? 'Dark' : 'Light';
     }
 
     // Override console methods
@@ -1185,12 +1211,6 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
       });
     });
 
-    // Use case
-    document.getElementById('useCase').addEventListener('change', e => {
-      state.useCase = e.target.value;
-      generateCode();
-    });
-
     // QR Size
     document.getElementById('qrSize').addEventListener('input', e => {
       state.qrSize = parseInt(e.target.value);
@@ -1226,10 +1246,8 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
     // Update claims based on credential type
     function updateClaimsForType() {
       const claimsMap = {
-        'Age Verification': ['birth_year', 'age_over_18', 'country'],
-        'Student ID': ['expiry_year', 'university', 'is_student'],
-        'Trial': ['trial_period', 'trial_type'],
-        'Email Alternative': ['email']
+        'Age Verification': ['birth year', 'age over 18', 'country', 'age over 23', 'indian citizen'],
+        'Student ID': ['is student', 'university']
       };
       
       // Reset all
@@ -1246,9 +1264,9 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
       const claimsHelp = document.getElementById('claimsHelp');
       if (claimsHelp) {
         if (state.credentialType === 'Student ID') {
-          claimsHelp.textContent = 'Student ID returns is_student, expiry_year, university after verification';
+          claimsHelp.textContent = 'Student ID returns is student, university after verification';
         } else if (state.credentialType === 'Age Verification') {
-          claimsHelp.textContent = 'Age Verification returns birth_year (or age_over_18), country after verification';
+          claimsHelp.textContent = 'Age Verification returns birth year (or age over 18), country after verification';
         }
       }
     }
@@ -1282,11 +1300,13 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
 
         log('Creating session...');
 
+        // Convert space-separated claims to underscore for API
+        const apiClaims = state.claims.map(c => c.replace(/ /g, '_'));
+
         // Create session
         const session = await ZeroAuth.createSession({
           credentialType: state.credentialType,
-          claims: state.claims,
-          useCase: state.useCase,
+          claims: apiClaims,
           timeout: parseInt(document.getElementById('timeout').value)
         });
 
@@ -1314,11 +1334,11 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
         qrDisplay.innerHTML = `
           <div style="text-align: center; padding: 20px;">
             ${qrDataUrl ? `
-              <div class=\"qr-image\" style=\"margin-bottom: 12px;\">
-                <img src=\"${qrDataUrl}\" alt=\"QR Code\" style=\"max-width: ${state.qrSize}px; width: 100%; height: auto; border-radius: 8px;\" />
+              <div class=\"qr-image\" style=\"margin-bottom: 12px; width: ${state.qrSize}px; height: ${state.qrSize}px;\">
+                <img src=\"${qrDataUrl}\" alt=\"QR Code\" style=\"max-width: 100%; max-height: 100%; border-radius: 8px;\" />
               </div>
             ` : `
-              <div style=\"font-size: 12px; color: var(--text-muted); margin-bottom: 12px;\">
+              <div class=\"qr-image\" style=\"font-size: 12px; color: var(--text-muted); margin-bottom: 12px;\">
                 QR code unavailable. Load a QRCode library or check console for details.
               </div>
             `}
@@ -1421,8 +1441,7 @@ const zeroAuth = new ZeroAuth({
 // Start verification
 const result = await zeroAuth.verify({
   credentialType: '${state.credentialType}',
-  claims: ['${claimsStr}'],
-  useCase: '${state.useCase}'
+  claims: ['${claimsStr}']
 });
 
 if (result.success) {
