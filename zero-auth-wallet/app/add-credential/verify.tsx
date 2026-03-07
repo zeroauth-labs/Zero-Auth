@@ -33,7 +33,7 @@ export default function VerifyScreen() {
                 // Determine credential type
                 const isUniversity = category === 'university';
                 const isAadhaar = category === 'government' && issuerId === 'aadhaar';
-                const credentialType = isAadhaar ? 'Aadhaar' : 'Student ID';
+                let credentialType = isAadhaar ? 'Aadhaar' : 'Student ID';
 
                 // Step 0: Verify with issuer (Supabase)
                 setCurrentStep(0);
