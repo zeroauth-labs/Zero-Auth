@@ -120,8 +120,8 @@ export default function VerifyScreen() {
                         is_student: commitment
                     };
                 } else if (isAadhaar) {
-                    // Store as Age Verification since Aadhaar provides age-based claims
-                    credentialType = 'Age Verification';
+                    // Store as Government ID - Aadhaar is the issuer/data source
+                    credentialType = 'Government ID';
                     // Extract birth_year from DOB
                     const birthYear = Number(issuedCredential.attributes.birth_year) || Number(year);
                     const commitment = await commitAttribute(zkEngine, birthYear, salt);

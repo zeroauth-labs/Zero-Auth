@@ -4,7 +4,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import * as SecureStore from 'expo-secure-store';
 import { generateSecureId, generateSecureSalt, hashPin, verifyPin as verifyPinHash } from '@/lib/utils';
 
-export type ServiceType = 'Age Verification' | 'Student ID' | 'Email Alternative' | 'Trial';
+export type ServiceType = 'Student ID' | 'Government ID' | 'Trial';
 
 export interface Session {
     id: string; // Local wallet ID

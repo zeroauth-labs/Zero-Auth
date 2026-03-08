@@ -805,7 +805,7 @@
               <span class="help" data-tooltip="Type of credential to request from wallet">?</span>
             </label>
             <div class="chip-group" id="credTypes">
-              <div class="chip active" data-value="Age Verification">Age Verification</div>
+              <div class="chip active" data-value="Government ID">Government ID</div>
               <div class="chip" data-value="Student ID">Student ID</div>
             </div>
           </div>
@@ -817,11 +817,10 @@
             <div class="chip-group" id="claims">
               <div class="chip active" data-value="birth year">birth year</div>
               <div class="chip" data-value="age over 18">age over 18</div>
-              <div class="chip active" data-value="country">country</div>
-              <div class="chip" data-value="is student">is student</div>
-              <div class="chip" data-value="university">university</div>
               <div class="chip" data-value="age over 23">age over 23</div>
               <div class="chip" data-value="indian citizen">indian citizen</div>
+              <div class="chip" data-value="is student">is student</div>
+              <div class="chip" data-value="university">university</div>
             </div>
             <div id="claimsHelp" class="text-xs text-[var(--text-muted)] mt-2">
               Age Verification returns birth year (or age over 18), country after verification
@@ -1121,7 +1120,7 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
     // State
     // ============================================
     const state = {
-      credentialType: 'Age Verification',
+      credentialType: 'Government ID',
       claims: ['birth year', 'country'],
       qrSize: 200,
       qrColor: '#000000',
@@ -1246,7 +1245,7 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
     // Update claims based on credential type
     function updateClaimsForType() {
       const claimsMap = {
-        'Age Verification': ['birth year', 'age over 18', 'country', 'age over 23', 'indian citizen'],
+        'Government ID': ['birth year', 'age over 18', 'age over 23', 'indian citizen'],
         'Student ID': ['is student', 'university']
       };
       
@@ -1265,8 +1264,8 @@ DELETE /api/v1/sessions/:id - Cancel session</div>
       if (claimsHelp) {
         if (state.credentialType === 'Student ID') {
           claimsHelp.textContent = 'Student ID returns is student, university after verification';
-        } else if (state.credentialType === 'Age Verification') {
-          claimsHelp.textContent = 'Age Verification returns birth year (or age over 18), country after verification';
+        } else if (state.credentialType === 'Government ID') {
+          claimsHelp.textContent = 'Government ID returns birth year, age over 18, age over 23, indian citizen after verification';
         }
       }
     }
