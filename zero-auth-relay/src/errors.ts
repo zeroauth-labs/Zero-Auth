@@ -50,9 +50,8 @@ export function createError(code: ErrorCode, message: string, details?: Record<s
 
 // Supported credential types
 export const SUPPORTED_CREDENTIAL_TYPES = [
-  'Age Verification',
   'Student ID',
-  'Aadhaar',
+  'Government ID',
   'Trial',
 ];
 
